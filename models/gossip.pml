@@ -1,4 +1,4 @@
-// A state machine of the gossip protocol within the Lightning Network
+/* A state machine of the gossip protocol within the Lightning Network */
 
 mtype = { INIT, CHAN_ANN, CHAN_UP, NODE_ANN,
 					ERR_PROTO_SIG, ERR_BLACKLIST,
@@ -9,6 +9,13 @@ chan AtoN = [1] of { mtype };
 chan NtoA = [0] of { mtype };
 chan BtoN = [1] of { mtype };
 chan NtoB = [0] of { mtype };
+
+/* TODO 10 is probably not the right number. What value */
+/* should I use? */
+chan StoredA = [10] of { mtype };
+chan StoredB = [10] of { mtype };
+chan RecentRejA = [10] of { mtype };
+chan RecentRejB = [10] of { mtype };
 
 int state[2];
 int pid[2];
@@ -26,18 +33,28 @@ int pid[2];
 #define MakeNodeAnnState        10
 #define EndState                -1
 
-proctype LightningGossip(chan snd, rcv; int i) {
+proctype LightningGossip(chan snd, rcv, stored, rec_rej; int i) {
 	pids[i] = _pid;
-CLOSED:
-	state[i] = ClosedState;
+INITIAL:
+	state[i] = InitState;
 	if
-	/* Passive open */
-	:: goto LISTEN;
-	/* Active open */
-	:: snd ! SYN; goto SYN_SENT;
-	/* Terminate */
+  :: snd ! INIT -> goto LISTEN_CHAN;
+  /* Terminate; TODO is this needed? */
 	:: goto end;
 	fi
+LISTEN_CHAN:
+  state[i] = ListenChanState;
+  if
+  :: rcv ? CHAN_ANN -> goto VALIDATE_CHAN_ANN
+  fi
+VALIDATE_CHAN_ANN:
+  state[i] = ValidateChanAnnState;
+  if
+	:: stored ! CHAN_ANN -> goto VALIDATE_CHAN_ANN;
+	:: rec_rej ! CHANN_ANN -> goto LISTEN_CHAN;
+::
+  fi
+
 
 end:
 	state[i] = EndState;
@@ -47,11 +64,11 @@ end:
 init {
 	state[0] = InitState;
 	state[1] = InitState;
-	run LightningGossip(AtoN, NtoA, 0);
-	run LightningGossip(BtoN, NtoB, 1);
+	run LightningGossip(AtoN, NtoA, StoredA, RecentRejA, 0);
+	run LightningGossip(BtoN, NtoB, StoredB, RecentRejB, 1);
 }
 
-// TODO question for max: why are only SYN, ACK, and FIN modeling in the network here?
+/* TODO question for max: why are only SYN, ACK, and FIN modeling in the network here? */
 active proctype network() {
 	do
 	:: AtoN ? SYN ->

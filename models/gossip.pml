@@ -1,6 +1,9 @@
 // A state machine of the gossip protocol within the Lightning Network
 
-mtype = { INIT, CHAN_ANN, CHAN_UP, NODE_ANN }
+mtype = { INIT, CHAN_ANN, CHAN_UP, NODE_ANN,
+					ERR_PROTO_SIG, ERR_BLACKLIST,
+					ERR_UNKNOWN_CHAIN_HASH, ERR_NO_P2WSH,
+					ERR_UTXO_USED }
 
 chan AtoN = [1] of { mtype };
 chan NtoA = [0] of { mtype };

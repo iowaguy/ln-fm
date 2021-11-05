@@ -1,10 +1,9 @@
-{ pkgs ? import <nixpkgs> {} }:
+# save this as shell.nix
+{ pkgs ? import <nixpkgs> {}}:
 
 pkgs.mkShell {
-  buildInputs = [
-    pkgs.spin
-
-    # keep this line if you use bash
-    pkgs.bashInteractive
+  nativeBuildInputs = with pkgs; [
+    spin
+    bashInteractive
   ];
 }

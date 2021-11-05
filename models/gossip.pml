@@ -14,17 +14,16 @@ int state[2];
 int pid[2];
 
 #define InitState               0
-#define BoostrapState           1
-#define ListenChanState         2
-#define ValidateChanAnnState    3
-#define NoRouteState            4
-#define ValidateUpState         5
-#define ListenNodeState         6
-#define ValidateNodeAnnState    7
-#define UserWaitState           8
-#define MakeChanAnnState        9
-#define MakeChanUpState         10
-#define MakeNodeAnnState        11
+#define ListenChanState         1
+#define ValidateChanAnnState    2
+#define NoRouteState            3
+#define ValidateUpState         4
+#define ListenNodeState         5
+#define ValidateNodeAnnState    6
+#define UserWaitState           7
+#define MakeChanAnnState        8
+#define MakeChanUpState         9
+#define MakeNodeAnnState        10
 #define EndState                -1
 
 proctype LightningGossip(chan snd, rcv; int i) {

@@ -5,9 +5,9 @@ ltl phi1 {
     implies (
       eventually (
         (
-          state[0] == AckWaitState ||
-          state[0] == CloseState   ||
-          state[0] == ConfirmCommState
+          state[0] == AckWaitState     ||
+          state[0] == ConfirmCommState ||
+          state[0] == CloseState
         )
       )
     )

@@ -16,6 +16,7 @@ int pid[2];
 #define AckWaitState            3
 #define ConfirmCommState        4
 #define FailState               5
+#define CloseState               5
 #define EndState                -1
 
 proctype LightningNormal(chan snd, rcv; int i) {
@@ -38,6 +39,7 @@ HTLC_OPEN:
 	if
 	:: snd ! COMMITMENT_SIGNED -> goto ACK_WAIT;
 	:: rcv ? COMMITMENT_SIGNED -> goto CONFIRM_COMM;
+	:: goto CloseState;
 	fi
 ACK_WAIT:
   state[i] = AckWaitState;
@@ -53,6 +55,9 @@ CONFIRM_COMM:
 	fi
 FAIL:
   state[i] = FailState;
+	goto end;
+CLOSE:
+  state[i] = CloseState;
 	goto end;
 end:
 	state[i] = EndState;

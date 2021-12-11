@@ -16,7 +16,7 @@ int pid[2];
 #define AckWaitState            3
 #define ConfirmCommState        4
 #define FailState               5
-#define CloseState               5
+#define CloseState              6
 #define EndState                -1
 
 proctype LightningNormal(chan snd, rcv; int i) {

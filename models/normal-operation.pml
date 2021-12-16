@@ -1,6 +1,9 @@
 /* A state machine of the gossip protocol within the Lightning Network */
 
-mtype = { UPDATE_ADD_HTLC, ERROR, COMMITMENT_SIGNED, REVOKE_AND_ACK }
+mtype = {
+	UPDATE_ADD_HTLC, ERROR, COMMITMENT_SIGNED, REVOKE_AND_ACK,
+	UPDATE_FAIL_HTLC, UPDATE_FAIL_MALFORMED_HTLC, UPDATE_FULFILL_HTLC
+}
 
 chan AtoN = [1] of { mtype };
 chan NtoA = [0] of { mtype };
@@ -29,7 +32,8 @@ FUNDED:
 VAL_HTLC:
   state[i] = ValHtlcState;
   if
-	:: snd ! ERROR -> goto FAIL;
+	:: snd ! UPDATE_FAIL_HTLC; snd ! ERROR -> goto FAIL;
+	:: snd ! UPDATE_FAIL_MALFORMED_HTLC; snd ! ERROR -> goto FAIL;
 
 	/* This transition executes if the HTLC is valid*/
 	:: goto HTLC_OPEN;
@@ -39,6 +43,7 @@ HTLC_OPEN:
 	if
 	:: snd ! COMMITMENT_SIGNED -> goto ACK_WAIT;
 	:: rcv ? COMMITMENT_SIGNED -> goto CONFIRM_COMM;
+	:: rcv ? UPDATE_FULFILL_HTLC -> goto FUNDED;
 	:: goto CloseState;
 	fi
 ACK_WAIT:
@@ -104,6 +109,31 @@ active proctype network() {
 	:: BtoN ? REVOKE_AND_ACK ->
 		if
 		:: NtoA ! REVOKE_AND_ACK;
+		fi unless timeout;
+
+	:: AtoN ? UPDATE_FAIL_HTLC ->
+		if
+		:: NtoB ! UPDATE_FAIL_HTLC;
+		fi unless timeout;
+	:: BtoN ? UPDATE_FAIL_HTLC ->
+		if
+		:: NtoA ! UPDATE_FAIL_HTLC;
+		fi unless timeout;
+	:: AtoN ? UPDATE_FAIL_MALFORMED_HTLC ->
+		if
+		:: NtoB ! UPDATE_FAIL_MALFORMED_HTLC;
+		fi unless timeout;
+	:: BtoN ? UPDATE_FAIL_MALFORMED_HTLC ->
+		if
+		:: NtoA ! UPDATE_FAIL_MALFORMED_HTLC;
+		fi unless timeout;
+	:: AtoN ? UPDATE_FULFILL_HTLC ->
+		if
+		:: NtoB ! UPDATE_FULFILL_HTLC;
+		fi unless timeout;
+	:: BtoN ? UPDATE_FULFILL_HTLC ->
+		if
+		:: NtoA ! UPDATE_FULFILL_HTLC;
 		fi unless timeout;
 	:: _nr_pr < 3 -> break;
 	od

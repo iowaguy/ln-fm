@@ -11,7 +11,7 @@ chan BtoN = [1] of { mtype };
 chan NtoB = [0] of { mtype };
 
 int state[2];
-int pid[2];
+int pids[2];
 
 #define FundedState             0
 #define ValHtlcState            1
@@ -44,7 +44,7 @@ HTLC_OPEN:
 	:: snd ! COMMITMENT_SIGNED -> goto ACK_WAIT;
 	:: rcv ? COMMITMENT_SIGNED -> goto CONFIRM_COMM;
 	:: rcv ? UPDATE_FULFILL_HTLC -> goto FUNDED;
-	:: goto CloseState;
+	:: goto CLOSE;
 	fi
 ACK_WAIT:
   state[i] = AckWaitState;

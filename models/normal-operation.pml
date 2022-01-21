@@ -25,7 +25,8 @@ proctype LightningNormal(chan snd, rcv; bit i) {
 FUNDED:
 	state[i] = FundedState;
 	if
-  :: rcv ! UPDATE_ADD_HTLC -> goto VAL_HTLC;
+  :: rcv ? UPDATE_ADD_HTLC -> goto VAL_HTLC;
+  :: snd ! UPDATE_ADD_HTLC -> goto HTLC_OPEN;
 	fi
 VAL_HTLC:
   state[i] = ValHtlcState;

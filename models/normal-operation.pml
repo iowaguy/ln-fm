@@ -20,6 +20,26 @@ int pids[2];
 #define CloseState              6
 #define EndState                -1
 
+
+/* The HTLC_OPEN state is always eventually followed by either: funded, */
+/* ackwait, confirmcomm, fail or close*/
+ltl phi1 {
+  always (
+    (state[0] == HtlcOpenState)
+    implies (
+      eventually (
+        (
+          state[0] == FundedState     ||
+          state[0] == AckWaitState     ||
+          state[0] == ConfirmCommState ||
+          state[0] == FailState ||
+          state[0] == CloseState
+        )
+      )
+    )
+  )
+}
+
 proctype LightningNormal(chan snd, rcv; bit i) {
 	pids[i] = _pid;
 FUNDED:

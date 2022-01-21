@@ -5,10 +5,8 @@ mtype = {
 	UPDATE_FAIL_HTLC, UPDATE_FAIL_MALFORMED_HTLC, UPDATE_FULFILL_HTLC
 }
 
-chan AtoN = [1] of { mtype };
-chan NtoA = [0] of { mtype };
-chan BtoN = [1] of { mtype };
-chan NtoB = [0] of { mtype };
+chan AtoB = [0] of { mtype };
+chan BtoA = [0] of { mtype };
 
 int state[2];
 int pids[2];
@@ -72,69 +70,7 @@ end:
 init {
 	state[0] = FundedState;
 	state[1] = FundedState;
-	run LightningNormal(AtoN, NtoA, 0);
-	run LightningNormal(BtoN, NtoB, 1);
+	run LightningNormal(AtoB, BtoA, 0);
+	run LightningNormal(BtoA, AtoB, 1);
 }
 
-active proctype network() {
-	do
-	:: AtoN ? UPDATE_ADD_HTLC ->
-		if
-		:: NtoB ! UPDATE_ADD_HTLC;
-		fi unless timeout;
-	:: BtoN ? UPDATE_ADD_HTLC ->
-		if
-		:: NtoA ! UPDATE_ADD_HTLC;
-		fi unless timeout;
-	:: AtoN ? ERROR ->
-		if
-		:: NtoB ! ERROR;
-		fi unless timeout;
-	:: BtoN ? ERROR ->
-		if
-		:: NtoA ! ERROR;
-		fi unless timeout;
-	:: AtoN ? COMMITMENT_SIGNED ->
-		if
-		:: NtoB ! COMMITMENT_SIGNED;
-		fi unless timeout;
-	:: BtoN ? COMMITMENT_SIGNED ->
-		if
-		:: NtoA ! COMMITMENT_SIGNED;
-		fi unless timeout;
-	:: AtoN ? REVOKE_AND_ACK ->
-		if
-		:: NtoB ! REVOKE_AND_ACK;
-		fi unless timeout;
-	:: BtoN ? REVOKE_AND_ACK ->
-		if
-		:: NtoA ! REVOKE_AND_ACK;
-		fi unless timeout;
-
-	:: AtoN ? UPDATE_FAIL_HTLC ->
-		if
-		:: NtoB ! UPDATE_FAIL_HTLC;
-		fi unless timeout;
-	:: BtoN ? UPDATE_FAIL_HTLC ->
-		if
-		:: NtoA ! UPDATE_FAIL_HTLC;
-		fi unless timeout;
-	:: AtoN ? UPDATE_FAIL_MALFORMED_HTLC ->
-		if
-		:: NtoB ! UPDATE_FAIL_MALFORMED_HTLC;
-		fi unless timeout;
-	:: BtoN ? UPDATE_FAIL_MALFORMED_HTLC ->
-		if
-		:: NtoA ! UPDATE_FAIL_MALFORMED_HTLC;
-		fi unless timeout;
-	:: AtoN ? UPDATE_FULFILL_HTLC ->
-		if
-		:: NtoB ! UPDATE_FULFILL_HTLC;
-		fi unless timeout;
-	:: BtoN ? UPDATE_FULFILL_HTLC ->
-		if
-		:: NtoA ! UPDATE_FULFILL_HTLC;
-		fi unless timeout;
-	:: _nr_pr < 3 -> break;
-	od
-}

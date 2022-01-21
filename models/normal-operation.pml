@@ -27,12 +27,14 @@ FUNDED:
 	if
   :: rcv ? UPDATE_ADD_HTLC -> goto VAL_HTLC;
   :: snd ! UPDATE_ADD_HTLC -> goto HTLC_OPEN;
+	:: rcv ? ERROR -> goto FAIL;
 	fi
 VAL_HTLC:
   state[i] = ValHtlcState;
   if
 	:: snd ! UPDATE_FAIL_HTLC; snd ! ERROR -> goto FAIL;
 	:: snd ! UPDATE_FAIL_MALFORMED_HTLC; snd ! ERROR -> goto FAIL;
+	:: rcv ? ERROR -> goto FAIL;
 
 	/* This transition executes if the HTLC is valid*/
 	:: goto HTLC_OPEN;
@@ -43,12 +45,14 @@ HTLC_OPEN:
 	:: snd ! COMMITMENT_SIGNED -> goto ACK_WAIT;
 	:: rcv ? COMMITMENT_SIGNED -> goto CONFIRM_COMM;
 	:: rcv ? UPDATE_FULFILL_HTLC -> goto FUNDED;
+  :: rcv ? ERROR -> goto FAIL;
 	:: goto CLOSE;
 	fi
 ACK_WAIT:
   state[i] = AckWaitState;
 	if
 	:: rcv ? REVOKE_AND_ACK -> goto HTLC_OPEN;
+  :: rcv ? ERROR -> goto FAIL;
 	fi
 CONFIRM_COMM:
   state[i] = ConfirmCommState;
@@ -56,6 +60,7 @@ CONFIRM_COMM:
 	/* Do this if the commitment_signed is valid */
 	:: snd ! REVOKE_AND_ACK -> goto HTLC_OPEN;
 	:: snd ! ERROR -> goto FAIL;
+  :: rcv ? ERROR -> goto FAIL;
 	fi
 FAIL:
   state[i] = FailState;

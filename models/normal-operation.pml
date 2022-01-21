@@ -40,6 +40,10 @@ ltl phi1 {
   )
 }
 
+/* ltl state3canBeForever { */
+/* 	! ( eventually ( always (state[0] == AckWaitState) ) ) */
+/* } */
+
 proctype LightningNormal(chan snd, rcv; bit i) {
 	pids[i] = _pid;
 FUNDED:

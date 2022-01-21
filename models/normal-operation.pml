@@ -46,6 +46,8 @@ HTLC_OPEN:
 	:: rcv ? COMMITMENT_SIGNED -> goto CONFIRM_COMM;
 	:: rcv ? UPDATE_FULFILL_HTLC -> goto FUNDED;
   :: rcv ? ERROR -> goto FAIL;
+  :: rcv ? UPDATE_FAIL_HTLC -> goto FAIL;
+  :: rcv ? UPDATE_FAIL_MALFORMED_HTLC -> goto FAIL;
 	:: goto CLOSE;
 	fi
 ACK_WAIT:

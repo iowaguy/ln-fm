@@ -5,5 +5,6 @@ pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
     spin
     bashInteractive
+    gnumake
   ];
 }

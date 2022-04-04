@@ -11,15 +11,26 @@ chan BtoA = [0] of { mtype };
 int state[2];
 int pids[2];
 
-#define FundedState             0
-#define ValHtlcState            1
-#define HtlcOpenState           2
-#define AckWaitState            3
-#define ConfirmCommState        4
-#define FailState               5
-#define CloseState              6
-#define EndState                -1
 
+
+#define FundedState                    0
+#define ValHtlcState                   1
+#define MoreHtlcsWaitState             2
+#define FailChannelState               3
+#define CloseChannelState              4
+#define OpenChannelState               5
+#define CommitmentAckWaitState         6
+#define ValSeqAck1State                7
+#define ValSeqAck2State                8
+#define ValCommitmentState             9
+#define ValConcCommitmentState         10
+#define ValPrimaryCommitmentState      11
+#define AckWaitState                   12
+#define DeleteHtlcState                13
+#define ValidateFulfillmentState       14
+#define HtlcFulfillWaitState           15
+#define ResyncState                    16
+#define EndState                       -1
 
 /* The HTLC_OPEN state is always eventually followed by either: funded, */
 /* ackwait, confirmcomm, fail or close*/

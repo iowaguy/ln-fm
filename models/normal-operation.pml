@@ -24,6 +24,7 @@ mtype = {
   MORE, NO_MORE
 }
 
+/* Rendezvous communication channels */
 chan AtoB = [0] of { mtype };
 chan BtoA = [0] of { mtype };
 

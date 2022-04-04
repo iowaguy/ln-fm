@@ -92,16 +92,16 @@ proctype LightningNormal(chan snd, rcv; bit i) {
 FUNDED:
   state[i] = FundedState;
   if
-  /* Receive the first HTLC from the counterparty. */
+  /* Receive the first HTLC from the counterparty. (5)*/
   :: rcv ? UPDATE_ADD_HTLC -> send_or_receive = RECV; goto VAL_HTLC;
 
-  /* Counterparty sent an error for some reason */
+  /* Counterparty sent an error for some reason (4) */
   :: rcv ? ERROR -> goto FAIL_CHANNEL;
 
-  /* Local node sent an error for some reason */
+  /* Local node sent an error for some reason (4) */
   :: snd ! ERROR -> goto FAIL_CHANNEL;
 
-  /* Send the first HTLC to the counterparty. */
+  /* Send the first HTLC to the counterparty. (3) */
   :: snd ! UPDATE_ADD_HTLC -> send_or_receive = SEND; goto MORE_HTLCS_WAIT;
   fi
 HTLC_OPEN:

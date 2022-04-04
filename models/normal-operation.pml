@@ -1,8 +1,27 @@
 /* A state machine of the gossip protocol within the Lightning Network */
 
 mtype = {
+  /* These are message types. They can be sent by one node to
+     its counterparty across the channel. */
   UPDATE_ADD_HTLC, ERROR, COMMITMENT_SIGNED, REVOKE_AND_ACK,
   UPDATE_FAIL_HTLC, UPDATE_FAIL_MALFORMED_HTLC, UPDATE_FULFILL_HTLC,
+
+  /* These two are flags. They indicate whether a particular
+     message was sent or received, which is important sometimes.
+     Used by the state machine, but not communicated on the wire
+     in the actual protocol.*/
+  SEND, RECV,
+
+  /* Validation states output one of the following. INVALID
+     usually leads to an error state. Used by the state machine,
+     but not communicated on the wire in the actual protocol. */
+  VALID, INVALID,
+
+  /* This is used to indicate whether or not there are more
+     HTLCs that need to be closed before returning to the
+     initial FUNDED state. Used by the state machine, but
+     not communicated on the wire in the actual protocol. */
+  MORE, NO_MORE
 }
 
 chan AtoB = [0] of { mtype };

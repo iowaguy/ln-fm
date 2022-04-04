@@ -30,6 +30,18 @@ chan BtoA = [0] of { mtype };
 int state[2];
 int pids[2];
 
+/* A boolean that indicates if all the HTLCs have been fulfilled or
+   not. All HTLCs must be fulfilled before new ones can be added
+   (i.e. before the state machine can return to `FUNDED`). */
+bool fulfilled = false;
+
+/* A boolean that indicates whether the two peers have gotten their
+   commitments out of sync. */
+bool desynced = false;
+
+/* This variable can be either SEND or RECV, depending on whether
+   the message is being sent or received. */
+mtype sent_or_received;
 
 
 #define FundedState                    0

@@ -1,8 +1,8 @@
 /* A state machine of the gossip protocol within the Lightning Network */
 
 mtype = {
-	UPDATE_ADD_HTLC, ERROR, COMMITMENT_SIGNED, REVOKE_AND_ACK,
-	UPDATE_FAIL_HTLC, UPDATE_FAIL_MALFORMED_HTLC, UPDATE_FULFILL_HTLC
+  UPDATE_ADD_HTLC, ERROR, COMMITMENT_SIGNED, REVOKE_AND_ACK,
+  UPDATE_FAIL_HTLC, UPDATE_FAIL_MALFORMED_HTLC, UPDATE_FULFILL_HTLC,
 }
 
 chan AtoB = [0] of { mtype };
@@ -56,7 +56,7 @@ ltl phi1 {
 /* } */
 
 proctype LightningNormal(chan snd, rcv; bit i) {
-	pids[i] = _pid;
+  pids[i] = _pid;
 FUNDED:
 	state[i] = FundedState;
 	if
@@ -111,9 +111,9 @@ end:
 
 
 init {
-	state[0] = FundedState;
-	state[1] = FundedState;
-	run LightningNormal(AtoB, BtoA, 0);
-	run LightningNormal(BtoA, AtoB, 1);
+  state[0] = FundedState;
+  state[1] = FundedState;
+  run LightningNormal(AtoB, BtoA, 0);
+  run LightningNormal(BtoA, AtoB, 1);
 }
 

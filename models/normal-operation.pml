@@ -34,15 +34,15 @@ int pids[2];
 /* A boolean that indicates if all the HTLCs have been fulfilled or
    not. All HTLCs must be fulfilled before new ones can be added
    (i.e. before the state machine can return to `FUNDED`). */
-bool fulfilled = false;
+bool fulfilled[2] = { false, false };
 
 /* A boolean that indicates whether the two peers have gotten their
    commitments out of sync. */
-bool desynced = false;
+bool desynced[2] = { false, false };
 
 /* This variable can be either SEND or RECV, depending on whether
    the message is being sent or received. */
-mtype sent_or_received;
+mtype sent_or_received[2];
 
 
 #define FundedState                    0

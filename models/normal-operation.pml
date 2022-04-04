@@ -44,6 +44,10 @@ bool desynced[2] = { false, false };
    the message is being sent or received. */
 mtype sent_or_received[2];
 
+/* This variable represents the return status of the intermediate
+   function calls. */
+mtype return[2];
+
 
 #define FundedState                    0
 #define ValHtlcState                   1
@@ -87,6 +91,13 @@ ltl phi1 {
 /* 	! ( eventually ( always (state[0] == AckWaitState) ) ) */
 /* } */
 
+proctype ValidateHTLC() {
+  do
+    :: return = VALID; break;
+    :: return = INVALID; break;
+  od
+}
+
 proctype LightningNormal(chan snd, rcv; bit i) {
   pids[i] = _pid;
 FUNDED:
@@ -104,6 +115,22 @@ FUNDED:
   /* Send the first HTLC to the counterparty. (3) */
   :: snd ! UPDATE_ADD_HTLC -> send_or_receive = SEND; goto MORE_HTLCS_WAIT;
   fi
+
+VAL_HTLC:
+  state[i] = ValHtlcState;
+  ValidateHTLC()
+  if
+  /* Send an error if the HTLC is malformed or incorrect. (8) */
+  :: return[i] == INVALID -> snd ! UPDATE_FAIL_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
+  :: return[i] == INVALID -> snd ! UPDATE_FAIL_MALFORMED_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
+
+  /* Use this transition if the received HTLC is deemed valid. (9) */
+  :: return[i] == VALID && desynced[i] == false -> goto MORE_HTLC_WAIT;
+
+  /* The out-of-sync `UPDATE_ADD_HTLC` received was valid. (42) */
+  :: return[i] == VALID && desynced[i] == true -> goto RESYNC;
+  fi
+
 HTLC_OPEN:
   state[i] = HtlcOpenState;
 	if

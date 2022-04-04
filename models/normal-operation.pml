@@ -90,21 +90,19 @@ ltl phi1 {
 proctype LightningNormal(chan snd, rcv; bit i) {
   pids[i] = _pid;
 FUNDED:
-	state[i] = FundedState;
-	if
-  :: rcv ? UPDATE_ADD_HTLC -> goto VAL_HTLC;
-  :: snd ! UPDATE_ADD_HTLC -> goto HTLC_OPEN;
-	:: rcv ? ERROR -> goto FAIL;
-	fi
-VAL_HTLC:
-  state[i] = ValHtlcState;
+  state[i] = FundedState;
   if
-	:: snd ! UPDATE_FAIL_HTLC; snd ! ERROR -> goto FAIL;
-	:: snd ! UPDATE_FAIL_MALFORMED_HTLC; snd ! ERROR -> goto FAIL;
-	:: rcv ? ERROR -> goto FAIL;
+  /* Receive the first HTLC from the counterparty. */
+  :: rcv ? UPDATE_ADD_HTLC -> send_or_receive = RECV; goto VAL_HTLC;
 
-	/* This transition executes if the HTLC is valid*/
-	:: goto HTLC_OPEN;
+  /* Counterparty sent an error for some reason */
+  :: rcv ? ERROR -> goto FAIL_CHANNEL;
+
+  /* Local node sent an error for some reason */
+  :: snd ! ERROR -> goto FAIL_CHANNEL;
+
+  /* Send the first HTLC to the counterparty. */
+  :: snd ! UPDATE_ADD_HTLC -> send_or_receive = SEND; goto MORE_HTLCS_WAIT;
   fi
 HTLC_OPEN:
   state[i] = HtlcOpenState;

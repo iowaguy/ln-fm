@@ -46,7 +46,7 @@ mtype sent_or_received[2];
 
 /* This variable represents the return status of the intermediate
    function calls. */
-mtype return[2];
+mtype status[2];
 
 
 #define FundedState                    0
@@ -91,10 +91,12 @@ ltl phi1 {
 /* 	! ( eventually ( always (state[0] == AckWaitState) ) ) */
 /* } */
 
-proctype ValidateHTLC() {
+/* This function simulates validating a received message. A message
+   can either be valid or invalid. */
+proctype ValidateMsg(bit peer) {
   do
-    :: return = VALID; break;
-    :: return = INVALID; break;
+  :: status[peer] = VALID; break;
+  :: status[peer] = INVALID; break;
   od
 }
 
@@ -118,17 +120,17 @@ FUNDED:
 
 VAL_HTLC:
   state[i] = ValHtlcState;
-  ValidateHTLC()
+  run ValidateMsg(i);
   if
   /* Send an error if the HTLC is malformed or incorrect. (8) */
-  :: return[i] == INVALID -> snd ! UPDATE_FAIL_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
-  :: return[i] == INVALID -> snd ! UPDATE_FAIL_MALFORMED_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
+  :: status[i] == INVALID -> snd ! UPDATE_FAIL_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
+  :: status[i] == INVALID -> snd ! UPDATE_FAIL_MALFORMED_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
 
   /* Use this transition if the received HTLC is deemed valid. (9) */
-  :: return[i] == VALID && desynced[i] == false -> goto MORE_HTLC_WAIT;
+  :: status[i] == VALID && desynced[i] == false -> goto MORE_HTLC_WAIT;
 
   /* The out-of-sync `UPDATE_ADD_HTLC` received was valid. (42) */
-  :: return[i] == VALID && desynced[i] == true -> goto RESYNC;
+  :: status[i] == VALID && desynced[i] == true -> goto RESYNC;
   fi
 
 HTLC_OPEN:

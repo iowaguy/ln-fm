@@ -66,6 +66,7 @@ mtype status[2];
 #define ValidateFulfillmentState       14
 #define HtlcFulfillWaitState           15
 #define ResyncState                    16
+#define ValDesyncComState              17
 #define EndState                       -1
 
 /* The HTLC_OPEN state is always eventually followed by either: funded, */
@@ -133,7 +134,35 @@ VAL_HTLC:
     :: status[i] == VALID && desynced[i] == true -> goto RESYNC;
   fi
 
+MORE_HTLCS_WAIT:
+  state[i] = MoreHtlcsWaitState;
+
+FAIL_CHANNEL:
+  state[i] = FailChannelState;
+
+RESYNC:
+  state[i] = ResyncState;
+  if
+    /* A `COMMITMENT_SIGNED` signed was sent concurrently (in addition to concurrent HTLCs),
+       the local node needs to ack it. (43) */
+    :: rcv ? COMMITMENT_SIGNED -> snd ! REVOKE_AND_ACK; goto VAL_DESYNC_COM;
+
+    /* Fail the channel if the other node timesout or sends an error during
+       resynchronization. (45) */
+    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+
+    /* The nodes exchanged `UPDATE_ADD_HTLC`s concurrently. One node also send a
+       `COMMITMENT_SIGNED`, which the counterparty has acked but not sent their own
+       `COMMITMENT_SIGNED` (yet). (44) */
+    :: rcv ? REVOKE_AND_ACK -> goto VAL_SEQ_ACK_1;
   fi
+
+VAL_DESYNC_COM:
+  state[i] = ValDesyncComState;
+
+VAL_SEQ_ACK_1:
+  state[i] = ValSeqAck1State;
 
 HTLC_OPEN:
   state[i] = HtlcOpenState;

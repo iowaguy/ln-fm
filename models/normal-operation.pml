@@ -301,6 +301,26 @@ VAL_CONC_COMM:
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
   fi
 
+VAL_PRIMARY_COMM:
+  state[i] = ValPrimaryCommitmentState;
+  run ValidateMsg(i);
+  if
+    /* Concurrent commitment swap. Send local commitment before swapping acks. (28) */
+    :: status[i] == VALID &&
+       snd ! COMMITMENT_SIGNED &&
+       ((snd ! REVOKE_AND_ACK && rcv ? REVOKE_AND_ACK) ||
+        (rcv ? REVOKE_AND_ACK && snd ! REVOKE_AND_ACK)) ->
+       goto VAL_CONC_ACK;
+
+    /* Send the ack and new commitment. (24) */
+    :: status[i] == VALID -> snd ! REVOKE_AND_ACK; snd ! COMMITMENT_SIGNED; goto ACK_WAIT;
+
+    /* If the received commitment is invalid, send an `ERROR` and fail the channel. (23) */
+    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+
+    /* Can receive an `ERROR` message at any time. (23) */
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+  fi
 
 FAIL_CHANNEL:
   state[i] = FailChannelState;

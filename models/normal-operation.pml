@@ -217,6 +217,33 @@ VAL_DESYNC_COM:
     :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
   fi
 
+COMM_ACK_WAIT:
+  state[i] = CommitmentAckWaitState;
+  if
+    /* An `UPDATE_ADD_HTLC` was received after the local node already sent a
+       commitment. Nodes are out of sync and need to be resynchronized. (41) */
+    :: rcv ? UPDATE_ADD_HTLC -> desynced = true; goto VAL_HTLC;
+
+    /* There is no timeout specified in the specification, but there should be. */
+    /* If the local node times out, send an `ERROR`. (17) */
+    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+
+    /* If an `ERROR` is received, fail the channel. (17) */
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+
+
+    /* Commitments were sent sequentially. The counterparty acked a commitment before
+       sending its own. (12) */
+    :: rcv ? REVOKE_AND_ACK; goto VAL_SEQ_ACK_1;
+
+    /* This transition means that the counterparty sent a commitment before
+       receiving the local commitment, i.e., they are concurrent. This is fine as long as
+       neither party both commits and revokes before receiving the counterparty's
+       commitment. (19) */
+    :: rcv ? COMMITMENT_SIGNED; goto VAL_CONC_COMM;
+  fi
+
+
 VAL_SEQ_ACK_1:
   state[i] = ValSeqAck1State;
 

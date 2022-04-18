@@ -95,8 +95,8 @@ ltl phi1 {
    can either be valid or invalid. */
 proctype ValidateMsg(bit peer) {
   do
-  :: status[peer] = VALID; break;
-  :: status[peer] = INVALID; break;
+    :: status[peer] = VALID; break;
+    :: status[peer] = INVALID; break;
   od
 }
 
@@ -105,32 +105,34 @@ proctype LightningNormal(chan snd, rcv; bit i) {
 FUNDED:
   state[i] = FundedState;
   if
-  /* Receive the first HTLC from the counterparty. (5)*/
-  :: rcv ? UPDATE_ADD_HTLC -> send_or_receive = RECV; goto VAL_HTLC;
+    /* Receive the first HTLC from the counterparty. (5)*/
+    :: rcv ? UPDATE_ADD_HTLC -> send_or_receive = RECV; goto VAL_HTLC;
 
-  /* Counterparty sent an error for some reason (4) */
-  :: rcv ? ERROR -> goto FAIL_CHANNEL;
+    /* Counterparty sent an error for some reason (4) */
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
 
-  /* Local node sent an error for some reason (4) */
-  :: snd ! ERROR -> goto FAIL_CHANNEL;
+    /* Local node sent an error for some reason (4) */
+    :: snd ! ERROR -> goto FAIL_CHANNEL;
 
-  /* Send the first HTLC to the counterparty. (3) */
-  :: snd ! UPDATE_ADD_HTLC -> send_or_receive = SEND; goto MORE_HTLCS_WAIT;
+    /* Send the first HTLC to the counterparty. (3) */
+    :: snd ! UPDATE_ADD_HTLC -> send_or_receive = SEND; goto MORE_HTLCS_WAIT;
   fi
 
 VAL_HTLC:
   state[i] = ValHtlcState;
   run ValidateMsg(i);
   if
-  /* Send an error if the HTLC is malformed or incorrect. (8) */
-  :: status[i] == INVALID -> snd ! UPDATE_FAIL_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
-  :: status[i] == INVALID -> snd ! UPDATE_FAIL_MALFORMED_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
+    /* Send an error if the HTLC is malformed or incorrect. (8) */
+    :: status[i] == INVALID -> snd ! UPDATE_FAIL_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
+    :: status[i] == INVALID -> snd ! UPDATE_FAIL_MALFORMED_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
 
-  /* Use this transition if the received HTLC is deemed valid. (9) */
-  :: status[i] == VALID && desynced[i] == false -> goto MORE_HTLC_WAIT;
+    /* Use this transition if the received HTLC is deemed valid. (9) */
+    :: status[i] == VALID && desynced[i] == false -> goto MORE_HTLCS_WAIT;
 
-  /* The out-of-sync `UPDATE_ADD_HTLC` received was valid. (42) */
-  :: status[i] == VALID && desynced[i] == true -> goto RESYNC;
+    /* The out-of-sync `UPDATE_ADD_HTLC` received was valid. (42) */
+    :: status[i] == VALID && desynced[i] == true -> goto RESYNC;
+  fi
+
   fi
 
 HTLC_OPEN:

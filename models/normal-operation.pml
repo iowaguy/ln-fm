@@ -246,6 +246,26 @@ COMM_ACK_WAIT:
 
 VAL_SEQ_ACK_1:
   state[i] = ValSeqAck1State;
+  run ValidateMsg(i);
+  if
+    /* Receive sequential commitment, but only if the previously received ack was
+       valid, and the peers are in sync. (13) */
+    :: status[i] == VALID && desynced[i] == false && rcv ? COMMITMENT_SIGNED -> goto VAL_COMM;
+
+    /* This transition should only be taken if the previous transition was `44`.
+       The counterparty has sent an ack, so now the local node and the counterparty
+       need to exchange commitments that include *all* the HTLCs (i.e. the
+       concurrent ones that were not all previously accounted for). (46) */
+    :: status[i] == VALID && desynced[i] == true -> goto MORE_HTLCS_WAIT;
+
+    /* There is no timeout specified in the specification, but there should be.
+       If the local node times out, send an `ERROR`. Also send an error if the
+       previously received ack is invalid. (14) */
+    :: timeout || status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+
+    /* If an `ERROR` is received, fail the channel. (14) */
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+  fi
 
 FAIL_CHANNEL:
   state[i] = FailChannelState;

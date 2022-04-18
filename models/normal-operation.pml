@@ -281,6 +281,27 @@ VAL_COMM:
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
   fi
 
+VAL_CONC_COMM:
+  state[i] = ValConcCommitmentState;
+  run ValidateMsg(i);
+  if
+    /* Both commitments have been exchanged, now we need to exchange both acks.
+       Either order is fine. (21) */
+    :: status[i] == VALID &&
+       ((snd ! REVOKE_AND_ACK && rcv ? REVOKE_AND_ACK) ||
+        (rcv ? REVOKE_AND_ACK && snd ! REVOKE_AND_ACK)) ->
+       goto VAL_CONC_ACK;
+
+    /* There is no timeout specified in the specification, but there should be.
+       If the local node times out, send an `ERROR`. Also send an error if the
+       previously received commitment is invalid. (20) */
+    :: timeout || status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+
+    /* If an `ERROR` is received, fail the channel. (20) */
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+  fi
+
+
 FAIL_CHANNEL:
   state[i] = FailChannelState;
   goto end;

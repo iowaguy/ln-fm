@@ -40,6 +40,14 @@ bool fulfilled[2] = { false, false };
    commitments out of sync. */
 bool desynced[2] = { false, false };
 
+/* The number of HTLCs that can be open at a time by a single peer.
+   The actual number in the protocol is 483, but we decrease it in our
+   model to avoid state-space explosion. */
+int maxCurrentHtlcs = 10;
+
+/* The number of HTLCs currently open by the peer. */
+int currentHtcls[2] = {0, 0};
+
 /* This variable can be either SEND or RECV, depending on whether
    the message is being sent or received. */
 mtype sent_or_received[2];
@@ -101,6 +109,18 @@ proctype ValidateMsg(bit peer) {
   od
 }
 
+/* Add an HTLC to the local node. The second parameter indicates whether
+   the HTLC was sent or received. Return INVALID if that puts the
+   local node over `maxCurrentHtlcs`. Return VALID otherwise. */
+proctype AddHtlc(bit peer) {
+  atomic {
+    if
+      :: currentHtcls[peer] < maxCurrentHtlcs -> currentHtlcs[peer]++; status[peer] = VALID; break;
+      :: currentHtcls[peer] >= maxCurrentHtlcs -> status[peer] = INVALID; break;
+    fi
+  }
+}
+
 proctype LightningNormal(chan snd, rcv; bit i) {
   pids[i] = _pid;
 FUNDED:
@@ -136,6 +156,36 @@ VAL_HTLC:
 
 MORE_HTLCS_WAIT:
   state[i] = MoreHtlcsWaitState;
+  run AddHtlc(i)
+  if
+    /* Receive additional HTLCs from the counterparty. Cannot take this path if
+       recovering from out of sync commitments or if in the process of fulfilling an
+       HTLC. (7) */
+    :: desynced[i] == false && fulfilled[i] == false && rcv ? UPDATE_ADD_HTLC ->
+       sent_or_received[i] = RECV; goto VAL_HTLC;
+
+    /* Send an error if adding another HTLC puts the local node over its max HTLC limit. (31) */
+    :: status[i] == INVALID -> goto FAIL_CHANNEL;
+
+    /* Send additional HTLCs to the counterparty, but only if the previous HTLC
+       (sent or received) did not put the local node over the `maxCurrentHtlcs`
+       limit. (6) */
+    :: status[i] == VALID && fulfilled[i] == false && desynced[i] == false ->
+       snd ! UDPATE_ADD_HTLC; sent_or_received[i] = SEND; goto MORE_HTLCS_WAIT;
+
+    /* The counterparty sends the first `COMMITMENT_SIGNED`. Once a node sends or
+       receives a `COMMITMENT_SIGNED`, it must complete the pair before adding new
+       HTLCs. Sending a commitment is an attempt to synchronize the nodes. If
+       nodes were out-of-sync, they are now marked as in sync. They can later be
+       marked as out-of-sync if a conflict occurs. (18) */
+    :: status[i] == VALID && rcv ? COMMITMENT_SIGNED; desynced = false; goto VAL_PRIMARY_COMM;
+
+    /* Once a node sends or receives a `COMMITMENT_SIGNED`, it must complete the
+       pair before adding new HTLCs. Sending a commitment is an attempt to
+       synchronize the nodes. If nodes were out-of-sync, they are now marked as in
+       sync. They can later be marked as out-of-sync if a conflict occurs. (11) */
+    :: status[i] == VALID && snd ! COMMITMENT_SIGNED; desynced = false; goto COMM_ACK_WAIT;
+  fi
 
 FAIL_CHANNEL:
   state[i] = FailChannelState;

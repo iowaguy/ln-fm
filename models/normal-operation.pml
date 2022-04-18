@@ -243,7 +243,6 @@ COMM_ACK_WAIT:
     :: rcv ? COMMITMENT_SIGNED; goto VAL_CONC_COMM;
   fi
 
-
 VAL_SEQ_ACK_1:
   state[i] = ValSeqAck1State;
   run ValidateMsg(i);
@@ -264,6 +263,21 @@ VAL_SEQ_ACK_1:
     :: timeout || status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
 
     /* If an `ERROR` is received, fail the channel. (14) */
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+  fi
+
+VAL_COMM:
+  state[i] = ValCommitmentState;
+  run ValidateMsg(i);
+  if
+    /* If the previously received commitment is valid, send an ack. Then wait for
+       the HTLC fulfillment. (15) */
+    :: status[i] == VALID -> snd ! REVOK_AND_ACK; goto HTLC_FULLFIL_WAIT;
+
+    /* If the received commitment is invalid, send an `ERROR` and fail the channel. (16) */
+    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+
+    /* Can receive an `ERROR` message at any time. (16) */
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
   fi
 

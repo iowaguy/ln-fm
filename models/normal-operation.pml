@@ -187,9 +187,6 @@ MORE_HTLCS_WAIT:
     :: status[i] == VALID && snd ! COMMITMENT_SIGNED; desynced = false; goto COMM_ACK_WAIT;
   fi
 
-FAIL_CHANNEL:
-  state[i] = FailChannelState;
-
 RESYNC:
   state[i] = ResyncState;
   if
@@ -223,39 +220,12 @@ VAL_DESYNC_COM:
 VAL_SEQ_ACK_1:
   state[i] = ValSeqAck1State;
 
-HTLC_OPEN:
-  state[i] = HtlcOpenState;
-	if
-	:: snd ! COMMITMENT_SIGNED -> goto ACK_WAIT;
-	:: rcv ? COMMITMENT_SIGNED -> goto CONFIRM_COMM;
-	:: rcv ? UPDATE_FULFILL_HTLC -> goto FUNDED;
-  :: rcv ? ERROR -> goto FAIL;
-  :: rcv ? UPDATE_FAIL_HTLC -> goto FAIL;
-  :: rcv ? UPDATE_FAIL_MALFORMED_HTLC -> goto FAIL;
-	:: goto CLOSE;
-	fi
-ACK_WAIT:
-  state[i] = AckWaitState;
-	if
-	:: rcv ? REVOKE_AND_ACK -> goto HTLC_OPEN;
-  :: rcv ? ERROR -> goto FAIL;
-	fi
-CONFIRM_COMM:
-  state[i] = ConfirmCommState;
-	if
-	/* Do this if the commitment_signed is valid */
-	:: snd ! REVOKE_AND_ACK -> goto HTLC_OPEN;
-	:: snd ! ERROR -> goto FAIL;
-  :: rcv ? ERROR -> goto FAIL;
-	fi
-FAIL:
-  state[i] = FailState;
-	goto end;
-CLOSE:
-  state[i] = CloseState;
-	goto end;
+FAIL_CHANNEL:
+  state[i] = FailChannelState;
+  goto end;
+
 end:
-	state[i] = EndState;
+  state[i] = EndState;
 }
 
 

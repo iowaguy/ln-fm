@@ -160,6 +160,15 @@ RESYNC:
 
 VAL_DESYNC_COM:
   state[i] = ValDesyncComState;
+  run ValidateMsg(i);
+  if
+    /* The concurrent commitment is well-formed. Next step is to either send or
+       receive commitments that include all the HTLCs. (48) */
+    :: status[i] == VALID -> goto MORE_HTLCS_WAIT;
+
+    /* Fail the channel if the commitment is malformed. (47) */
+    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+  fi
 
 VAL_SEQ_ACK_1:
   state[i] = ValSeqAck1State;

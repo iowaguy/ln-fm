@@ -356,6 +356,19 @@ ACK_WAIT:
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
   fi
 
+VAL_SEQ_ACK_2:
+  state[i] = ValSeqAck2State;
+  run ValidateMsg(i);
+  if
+    /* If the previously received ack was valid, wait for the HTLC fulfillment. (29) */
+    :: status[i] == VALID -> goto HTLC_FULFILL_WAIT;
+
+    /* If an `ERROR` is received, fail the channel. Send an `ERROR` if the
+       previously received ack is invalid. (27) */
+    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+  fi
+
 FAIL_CHANNEL:
   state[i] = FailChannelState;
   goto end;

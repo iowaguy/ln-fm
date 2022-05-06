@@ -342,6 +342,20 @@ VAL_CONC_ACK:
     :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
   fi
+
+ACK_WAIT:
+  state[i] = AckWaitState;
+  if
+    /* Receive the final ack. (26) */
+    :: rcv ? REVOKE_AND_ACK -> goto VAL_SEQ_ACK_2;
+
+    /* If an `ERROR` is received, fail the channel. There is no timeout specified
+       in the specification, but there should be. If the local node times out, send
+       an `ERROR`. (25) */
+    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+  fi
+
 FAIL_CHANNEL:
   state[i] = FailChannelState;
   goto end;

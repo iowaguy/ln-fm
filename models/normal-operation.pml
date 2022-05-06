@@ -75,6 +75,7 @@ mtype status[2];
 #define HtlcFulfillWaitState           15
 #define ResyncState                    16
 #define ValDesyncComState              17
+#define ValConcAckState                18
 #define EndState                       -1
 
 /* The HTLC_OPEN state is always eventually followed by either: funded, */
@@ -327,6 +328,20 @@ VAL_PRIMARY_COMM:
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
   fi
 
+VAL_CONC_ACK:
+  state[i] = ValConcAckState;
+  run ValidateMsg(i);
+  if
+    /* Ack is valid. (32) */
+    :: status[i] == VALID -> goto HTLC_FULFILL_WAIT;
+
+    /* If an `ERROR` is received, fail the channel. There is no timeout specified
+       in the specification, but there should be. If the local node times out, send
+       an `ERROR`. Also send an error if the previously received ack is invalid. (22) */
+    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+  fi
 FAIL_CHANNEL:
   state[i] = FailChannelState;
   goto end;

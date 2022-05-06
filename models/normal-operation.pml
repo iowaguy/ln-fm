@@ -369,6 +369,28 @@ VAL_SEQ_ACK_2:
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
   fi
 
+HTLC_FULFILL_WAIT:
+  state[i] = HtlcFulfillWaitState;
+  if
+    /* HTLC deletion was successful, and no more HTLCs need to be settled. Return
+       to `FUNDED` state. (36) */
+    :: fulfilled == true -> fulfilled = false; goto FUNDED;
+
+    /* Send an HTLC fulfillment. (37) */
+    :: fulfilled == false -> snd ! UPDATE_FULFILL_HTLC; sent_or_received[i] = SEND; goto DEL_HTLC;
+
+
+    /* Received an HTLC fulfillment. Proceed to validation steps. (33) */
+    :: fulfilled == false && rcv ? UPDATE_FULFILL_HTLC -> goto VAL_FULFILL;
+
+    /* The local node might time out and thus be forced to fail the channel,
+       however, the transaction is actually complete. The remaining commitment/ack
+       pair is just to make the transactions smaller, for block space
+       efficiency. (30) */
+    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+  fi
+
 FAIL_CHANNEL:
   state[i] = FailChannelState;
   goto end;

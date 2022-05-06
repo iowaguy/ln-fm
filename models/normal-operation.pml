@@ -115,8 +115,13 @@ proctype ValidateMsg(bit peer) {
 proctype AddHtlc(bit peer) {
   atomic {
     if
-      :: currentHtcls[peer] < maxCurrentHtlcs -> currentHtlcs[peer]++; status[peer] = VALID; break;
-      :: currentHtcls[peer] >= maxCurrentHtlcs -> status[peer] = INVALID; break;
+      :: fulfilled == false && currentHtcls[peer] < maxCurrentHtlcs -> currentHtlcs[peer]++; status[peer] = VALID; break;
+      :: fulfilled == false && currentHtcls[peer] >= maxCurrentHtlcs -> status[peer] = INVALID; break;
+
+      /* If the HTLCs have already been fulfilled, then we cannot add
+         new HTLCs. Therefore, as a shortcut, we just set this to VALID,
+         so that the state machine can progress to the next logical state. */
+      :: fulfilled == true -> status[peer] = VALID; break;
     fi
   }
 }

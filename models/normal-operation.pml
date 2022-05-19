@@ -102,7 +102,8 @@ ltl phi1 {
 /* } */
 
 /* This function simulates validating a received message. A message
-   can either be valid or invalid. */
+   can either be valid or invalid. It is essentially a coin flip that
+   causes both outcomes to be checked. */
 proctype ValidateMsg(bit peer) {
   do
     :: status[peer] = VALID; break;
@@ -389,6 +390,17 @@ HTLC_FULFILL_WAIT:
        efficiency. (30) */
     :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
+  fi
+
+VAL_FULFILL:
+  state[i] = ValidateFulfillmentState;
+  run ValidateMsg(i);
+  if
+    /* HTLC is valid, proceed to deleting it. (35) */
+    :: status[i] == VALID -> sent_or_received[i] = RECV; goto DEL_HTLC;
+
+    /* Fulfillment is invalid, Fail channel. (34) */
+    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
   fi
 
 FAIL_CHANNEL:

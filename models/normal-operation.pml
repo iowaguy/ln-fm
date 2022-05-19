@@ -45,8 +45,11 @@ bool desynced[2] = { false, false };
    model to avoid state-space explosion. */
 int maxCurrentHtlcs = 10;
 
-/* The number of HTLCs currently open by the peer. */
-int currentHtcls[2] = {0, 0};
+/* The number of HTLCs opened by the local and remote peers, respectively.
+   There needs to be two pools, becuase a node can only remove an HTLC
+   added by it's counterparty. This is how we track it. */
+int localHtcls[2] = {0, 0};
+int remoteHtcls[2] = {0, 0};
 
 /* This variable can be either SEND or RECV, depending on whether
    the message is being sent or received. */
@@ -56,6 +59,9 @@ mtype sent_or_received[2];
    function calls. */
 mtype status[2];
 
+/* This variable indicates whether a peer has more HTLCs it needs
+   to delete before it can be considered settled. */
+mtype is_more[2];
 
 #define FundedState                    0
 #define ValHtlcState                   1
@@ -80,22 +86,22 @@ mtype status[2];
 
 /* The HTLC_OPEN state is always eventually followed by either: funded, */
 /* ackwait, confirmcomm, fail or close*/
-ltl phi1 {
-  always (
-    (state[0] == HtlcOpenState)
-    implies (
-      eventually (
-        (
-          state[0] == FundedState     ||
-          state[0] == AckWaitState     ||
-          state[0] == ConfirmCommState ||
-          state[0] == FailState ||
-          state[0] == CloseState
-        )
-      )
-    )
-  )
-}
+/* ltl phi1 { */
+/*   always ( */
+/*     (state[0] == HtlcOpenState) */
+/*     implies ( */
+/*       eventually ( */
+/*         ( */
+/*           state[0] == FundedState     || */
+/*           state[0] == AckWaitState     || */
+/*           state[0] == ConfirmCommState || */
+/*           state[0] == FailState || */
+/*           state[0] == CloseState */
+/*         ) */
+/*       ) */
+/*     ) */
+/*   ) */
+/* } */
 
 /* ltl state3canBeForever { */
 /* 	! ( eventually ( always (state[0] == AckWaitState) ) ) */
@@ -117,13 +123,50 @@ proctype ValidateMsg(bit peer) {
 proctype AddHtlc(bit peer) {
   atomic {
     if
-      :: fulfilled == false && currentHtcls[peer] < maxCurrentHtlcs -> currentHtlcs[peer]++; status[peer] = VALID; break;
-      :: fulfilled == false && currentHtcls[peer] >= maxCurrentHtlcs -> status[peer] = INVALID; break;
+      /* First, make sure we are not over the HTLC limit. */
+      :: fulfilled[peer] == false && localHtlcs[peer] + remoteHtlcs[peer] < maxCurrentHtlcs ->
+         if
+           /* If we sent the HTLC, add it to the local set,
+              otherwise, add it to the remote set. */
+           :: sent_or_received[peer] == SEND -> localHtlcs[peer]++; status[peer] = VALID; break;
+           :: sent_or_received[peer] == RECV -> remoteHtlcs[peer]++; status[peer] = VALID; break;
+         fi
+
+      /* If we are over the HTLC limit, mark the latest as INVALID. */
+      :: fulfilled[peer] == false && localHtlcs[peer] + remoteHtlcs[peer] >= maxCurrentHtlcs ->
+         status[peer] = INVALID; break;
 
       /* If the HTLCs have already been fulfilled, then we cannot add
          new HTLCs. Therefore, as a shortcut, we just set this to VALID,
          so that the state machine can progress to the next logical state. */
-      :: fulfilled == true -> status[peer] = VALID; break;
+      :: fulfilled[peer] == true -> status[peer] = VALID; break;
+    fi
+  }
+}
+
+proctype DeleteHtlc(bit peer) {
+  atomic {
+    if
+      /* Remove the remote's HTLC if it was added by the local peer, and
+         there are still HTLCs left to remove. */
+      :: sent_or_received[peer] == SEND && remoteHtlcs[peer] > 0 ->
+         remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = MORE; break;
+      :: sent_or_received[peer] == SEND && remoteHtlcs[peer] > 0 ->
+         remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = NO_MORE; break;
+
+      /* Remove the local peer's HTLC if it was added by the remote, and
+         there are still HTLCs left to remove. */
+      :: sent_or_received[peer] == RECV && localHtlcs[peer] > 0 ->
+         localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = MORE; break;
+      :: sent_or_received[peer] == RECV && localHtlcs[peer] > 0 ->
+         localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = NO_MORE; break;
+
+      /* If there are no more HTLCs to remove, this is an error. Mark
+         as INVALID. */
+      :: sent_or_received[peer] == SEND && remoteHtlcs[peer] == 0 ->
+         status[peer] = INVALID; break;
+      :: sent_or_received[peer] == RECV && localHtlcs[peer] == 0 ->
+         status[peer] = INVALID; break;
     fi
   }
 }
@@ -375,14 +418,14 @@ HTLC_FULFILL_WAIT:
   if
     /* HTLC deletion was successful, and no more HTLCs need to be settled. Return
        to `FUNDED` state. (36) */
-    :: fulfilled == true -> fulfilled = false; goto FUNDED;
+    :: fulfilled[i] == true -> fulfilled[i] = false; goto FUNDED;
 
     /* Send an HTLC fulfillment. (37) */
-    :: fulfilled == false -> snd ! UPDATE_FULFILL_HTLC; sent_or_received[i] = SEND; goto DEL_HTLC;
+    :: fulfilled[i] == false -> snd ! UPDATE_FULFILL_HTLC; sent_or_received[i] = SEND; goto DEL_HTLC;
 
 
     /* Received an HTLC fulfillment. Proceed to validation steps. (33) */
-    :: fulfilled == false && rcv ? UPDATE_FULFILL_HTLC -> goto VAL_FULFILL;
+    :: fulfilled[i] == false && rcv ? UPDATE_FULFILL_HTLC -> goto VAL_FULFILL;
 
     /* The local node might time out and thus be forced to fail the channel,
        however, the transaction is actually complete. The remaining commitment/ack
@@ -400,6 +443,23 @@ VAL_FULFILL:
     :: status[i] == VALID -> sent_or_received[i] = RECV; goto DEL_HTLC;
 
     /* Fulfillment is invalid, Fail channel. (34) */
+    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+  fi
+
+DEL_HTLC:
+  state[i] = DeleteHtlcState;
+  run DeleteHtlc(i);
+  if
+    /* HTLC deletion was successful, but more HTLCs remain to be removed. (40) */
+    :: status[i] == VALID && is_more[i] = MORE; goto HTLC_FULFILL_WAIT;
+
+    /* All HTLCs have been fulfilled, but the two parties still need to exchange
+       commitments and revocations. This is to reduce the complexity (i.e. size) of
+       the logic that needs to be in the redeemable transactions. (39) */
+    :: status[i] == VALID && is_more[i] = NO_MORE; fulfilled[i] = true; goto MORE_HTLCS_WAIT;
+
+    /* Cannot delete HTLC, because the local peer created it. You can only delete
+       HTLCs created by the counterparty. (38) */
     :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
   fi
 

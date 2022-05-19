@@ -48,8 +48,8 @@ int maxCurrentHtlcs = 10;
 /* The number of HTLCs opened by the local and remote peers, respectively.
    There needs to be two pools, becuase a node can only remove an HTLC
    added by it's counterparty. This is how we track it. */
-int localHtcls[2] = {0, 0};
-int remoteHtcls[2] = {0, 0};
+int localHtlcs[2] = {0, 0};
+int remoteHtlcs[2] = {0, 0};
 
 /* This variable can be either SEND or RECV, depending on whether
    the message is being sent or received. */
@@ -128,18 +128,18 @@ proctype AddHtlc(bit peer) {
          if
            /* If we sent the HTLC, add it to the local set,
               otherwise, add it to the remote set. */
-           :: sent_or_received[peer] == SEND -> localHtlcs[peer]++; status[peer] = VALID; break;
-           :: sent_or_received[peer] == RECV -> remoteHtlcs[peer]++; status[peer] = VALID; break;
+           :: sent_or_received[peer] == SEND -> localHtlcs[peer]++; status[peer] = VALID;
+           :: sent_or_received[peer] == RECV -> remoteHtlcs[peer]++; status[peer] = VALID;
          fi
 
       /* If we are over the HTLC limit, mark the latest as INVALID. */
       :: fulfilled[peer] == false && localHtlcs[peer] + remoteHtlcs[peer] >= maxCurrentHtlcs ->
-         status[peer] = INVALID; break;
+         status[peer] = INVALID;
 
       /* If the HTLCs have already been fulfilled, then we cannot add
          new HTLCs. Therefore, as a shortcut, we just set this to VALID,
          so that the state machine can progress to the next logical state. */
-      :: fulfilled[peer] == true -> status[peer] = VALID; break;
+      :: fulfilled[peer] == true -> status[peer] = VALID;
     fi
   }
 }
@@ -150,34 +150,35 @@ proctype DeleteHtlc(bit peer) {
       /* Remove the remote's HTLC if it was added by the local peer, and
          there are still HTLCs left to remove. */
       :: sent_or_received[peer] == SEND && remoteHtlcs[peer] > 0 ->
-         remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = MORE; break;
+         remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = MORE;
       :: sent_or_received[peer] == SEND && remoteHtlcs[peer] > 0 ->
-         remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = NO_MORE; break;
+         remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = NO_MORE;
 
       /* Remove the local peer's HTLC if it was added by the remote, and
          there are still HTLCs left to remove. */
       :: sent_or_received[peer] == RECV && localHtlcs[peer] > 0 ->
-         localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = MORE; break;
+         localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = MORE;
       :: sent_or_received[peer] == RECV && localHtlcs[peer] > 0 ->
-         localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = NO_MORE; break;
+         localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = NO_MORE;
 
       /* If there are no more HTLCs to remove, this is an error. Mark
          as INVALID. */
       :: sent_or_received[peer] == SEND && remoteHtlcs[peer] == 0 ->
-         status[peer] = INVALID; break;
+         status[peer] = INVALID;
       :: sent_or_received[peer] == RECV && localHtlcs[peer] == 0 ->
-         status[peer] = INVALID; break;
+         status[peer] = INVALID;
     fi
   }
 }
 
 proctype LightningNormal(chan snd, rcv; bit i) {
   pids[i] = _pid;
+
 FUNDED:
   state[i] = FundedState;
   if
     /* Receive the first HTLC from the counterparty. (5)*/
-    :: rcv ? UPDATE_ADD_HTLC -> send_or_receive = RECV; goto VAL_HTLC;
+    :: rcv ? UPDATE_ADD_HTLC -> sent_or_received[i] = RECV; goto VAL_HTLC;
 
     /* Counterparty sent an error for some reason (4) */
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
@@ -186,7 +187,7 @@ FUNDED:
     :: snd ! ERROR -> goto FAIL_CHANNEL;
 
     /* Send the first HTLC to the counterparty. (3) */
-    :: snd ! UPDATE_ADD_HTLC -> send_or_receive = SEND; goto MORE_HTLCS_WAIT;
+    :: snd ! UPDATE_ADD_HTLC -> sent_or_received[i] = SEND; goto MORE_HTLCS_WAIT;
   fi
 
 VAL_HTLC:
@@ -211,8 +212,10 @@ MORE_HTLCS_WAIT:
     /* Receive additional HTLCs from the counterparty. Cannot take this path if
        recovering from out of sync commitments or if in the process of fulfilling an
        HTLC. (7) */
-    :: desynced[i] == false && fulfilled[i] == false && rcv ? UPDATE_ADD_HTLC ->
-       sent_or_received[i] = RECV; goto VAL_HTLC;
+    :: desynced[i] == false && fulfilled[i] == false ->
+       if
+         :: rcv ? UPDATE_ADD_HTLC -> sent_or_received[i] = RECV; goto VAL_HTLC;
+       fi
 
     /* Send an error if adding another HTLC puts the local node over its max HTLC limit. (31) */
     :: status[i] == INVALID -> goto FAIL_CHANNEL;
@@ -221,20 +224,26 @@ MORE_HTLCS_WAIT:
        (sent or received) did not put the local node over the `maxCurrentHtlcs`
        limit. (6) */
     :: status[i] == VALID && fulfilled[i] == false && desynced[i] == false ->
-       snd ! UDPATE_ADD_HTLC; sent_or_received[i] = SEND; goto MORE_HTLCS_WAIT;
+       snd ! UPDATE_ADD_HTLC; sent_or_received[i] = SEND; goto MORE_HTLCS_WAIT;
 
     /* The counterparty sends the first `COMMITMENT_SIGNED`. Once a node sends or
        receives a `COMMITMENT_SIGNED`, it must complete the pair before adding new
        HTLCs. Sending a commitment is an attempt to synchronize the nodes. If
        nodes were out-of-sync, they are now marked as in sync. They can later be
        marked as out-of-sync if a conflict occurs. (18) */
-    :: status[i] == VALID && rcv ? COMMITMENT_SIGNED; desynced = false; goto VAL_PRIMARY_COMM;
+    :: status[i] == VALID ->
+       if
+         :: rcv ? COMMITMENT_SIGNED; desynced[i] = false; goto VAL_PRIMARY_COMM;
+       fi
 
     /* Once a node sends or receives a `COMMITMENT_SIGNED`, it must complete the
        pair before adding new HTLCs. Sending a commitment is an attempt to
        synchronize the nodes. If nodes were out-of-sync, they are now marked as in
        sync. They can later be marked as out-of-sync if a conflict occurs. (11) */
-    :: status[i] == VALID && snd ! COMMITMENT_SIGNED; desynced = false; goto COMM_ACK_WAIT;
+    :: status[i] == VALID ->
+       if
+         :: snd ! COMMITMENT_SIGNED; desynced[i] = false; goto COMM_ACK_WAIT;
+       fi
   fi
 
 RESYNC:
@@ -272,7 +281,7 @@ COMM_ACK_WAIT:
   if
     /* An `UPDATE_ADD_HTLC` was received after the local node already sent a
        commitment. Nodes are out of sync and need to be resynchronized. (41) */
-    :: rcv ? UPDATE_ADD_HTLC -> desynced = true; goto VAL_HTLC;
+    :: rcv ? UPDATE_ADD_HTLC -> desynced[i] = true; goto VAL_HTLC;
 
     /* There is no timeout specified in the specification, but there should be. */
     /* If the local node times out, send an `ERROR`. (17) */
@@ -299,7 +308,10 @@ VAL_SEQ_ACK_1:
   if
     /* Receive sequential commitment, but only if the previously received ack was
        valid, and the peers are in sync. (13) */
-    :: status[i] == VALID && desynced[i] == false && rcv ? COMMITMENT_SIGNED -> goto VAL_COMM;
+    :: status[i] == VALID && desynced[i] == false ->
+       if
+         :: rcv ? COMMITMENT_SIGNED -> goto VAL_COMM;
+       fi
 
     /* This transition should only be taken if the previous transition was `44`.
        The counterparty has sent an ack, so now the local node and the counterparty
@@ -322,7 +334,7 @@ VAL_COMM:
   if
     /* If the previously received commitment is valid, send an ack. Then wait for
        the HTLC fulfillment. (15) */
-    :: status[i] == VALID -> snd ! REVOK_AND_ACK; goto HTLC_FULLFIL_WAIT;
+    :: status[i] == VALID -> snd ! REVOKE_AND_ACK; goto HTLC_FULFILL_WAIT;
 
     /* If the received commitment is invalid, send an `ERROR` and fail the channel. (16) */
     :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
@@ -337,10 +349,17 @@ VAL_CONC_COMM:
   if
     /* Both commitments have been exchanged, now we need to exchange both acks.
        Either order is fine. (21) */
-    :: status[i] == VALID &&
-       ((snd ! REVOKE_AND_ACK && rcv ? REVOKE_AND_ACK) ||
-        (rcv ? REVOKE_AND_ACK && snd ! REVOKE_AND_ACK)) ->
-       goto VAL_CONC_ACK;
+    :: status[i] == VALID ->
+       if
+         :: snd ! REVOKE_AND_ACK ->
+            if
+              :: rcv ? REVOKE_AND_ACK -> goto VAL_CONC_ACK;
+            fi
+         :: rcv ? REVOKE_AND_ACK ->
+            if
+              :: snd ! REVOKE_AND_ACK -> goto VAL_CONC_ACK;
+            fi
+       fi
 
     /* There is no timeout specified in the specification, but there should be.
        If the local node times out, send an `ERROR`. Also send an error if the
@@ -356,11 +375,20 @@ VAL_PRIMARY_COMM:
   run ValidateMsg(i);
   if
     /* Concurrent commitment swap. Send local commitment before swapping acks. (28) */
-    :: status[i] == VALID &&
-       snd ! COMMITMENT_SIGNED &&
-       ((snd ! REVOKE_AND_ACK && rcv ? REVOKE_AND_ACK) ||
-        (rcv ? REVOKE_AND_ACK && snd ! REVOKE_AND_ACK)) ->
-       goto VAL_CONC_ACK;
+    :: status[i] == VALID ->
+       if
+         :: snd ! COMMITMENT_SIGNED ->
+            if
+              :: snd ! REVOKE_AND_ACK ->
+                 if
+                   :: rcv ? REVOKE_AND_ACK -> goto VAL_CONC_ACK;
+                 fi
+              :: rcv ? REVOKE_AND_ACK ->
+                 if
+                   :: snd ! REVOKE_AND_ACK -> goto VAL_CONC_ACK;
+                 fi
+            fi
+       fi
 
     /* Send the ack and new commitment. (24) */
     :: status[i] == VALID -> snd ! REVOKE_AND_ACK; snd ! COMMITMENT_SIGNED; goto ACK_WAIT;
@@ -425,7 +453,10 @@ HTLC_FULFILL_WAIT:
 
 
     /* Received an HTLC fulfillment. Proceed to validation steps. (33) */
-    :: fulfilled[i] == false && rcv ? UPDATE_FULFILL_HTLC -> goto VAL_FULFILL;
+    :: fulfilled[i] == false ->
+       if
+         :: rcv ? UPDATE_FULFILL_HTLC -> goto VAL_FULFILL;
+       fi
 
     /* The local node might time out and thus be forced to fail the channel,
        however, the transaction is actually complete. The remaining commitment/ack
@@ -451,12 +482,12 @@ DEL_HTLC:
   run DeleteHtlc(i);
   if
     /* HTLC deletion was successful, but more HTLCs remain to be removed. (40) */
-    :: status[i] == VALID && is_more[i] = MORE; goto HTLC_FULFILL_WAIT;
+    :: status[i] == VALID && is_more[i] == MORE; goto HTLC_FULFILL_WAIT;
 
     /* All HTLCs have been fulfilled, but the two parties still need to exchange
        commitments and revocations. This is to reduce the complexity (i.e. size) of
        the logic that needs to be in the redeemable transactions. (39) */
-    :: status[i] == VALID && is_more[i] = NO_MORE; fulfilled[i] = true; goto MORE_HTLCS_WAIT;
+    :: status[i] == VALID && is_more[i] == NO_MORE; fulfilled[i] = true; goto MORE_HTLCS_WAIT;
 
     /* Cannot delete HTLC, because the local peer created it. You can only delete
        HTLCs created by the counterparty. (38) */
@@ -478,4 +509,3 @@ init {
   run LightningNormal(AtoB, BtoA, 0);
   run LightningNormal(BtoA, AtoB, 1);
 }
-

@@ -43,7 +43,7 @@ bool desynced[2] = { false, false };
 /* The number of HTLCs that can be open at a time by a single peer.
    The actual number in the protocol is 483, but we decrease it in our
    model to avoid state-space explosion. */
-int maxCurrentHtlcs = 10;
+int maxCurrentHtlcs = 2;
 
 /* The number of HTLCs opened by the local and remote peers, respectively.
    There needs to be two pools, becuase a node can only remove an HTLC
@@ -111,10 +111,12 @@ mtype is_more[2];
    can either be valid or invalid. It is essentially a coin flip that
    causes both outcomes to be checked. */
 proctype ValidateMsg(bit peer) {
-  do
-    :: status[peer] = VALID; break;
-    :: status[peer] = INVALID; break;
-  od
+  atomic {
+    do
+      :: status[peer] = VALID; break;
+      :: status[peer] = INVALID; break;
+    od
+  }
 }
 
 /* Add an HTLC to the local node. The second parameter indicates whether
@@ -193,28 +195,45 @@ FUNDED:
 VAL_HTLC:
   state[i] = ValHtlcState;
   run ValidateMsg(i);
-  if
+  do
     /* Send an error if the HTLC is malformed or incorrect. (8) */
-    :: status[i] == INVALID -> snd ! UPDATE_FAIL_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
-    :: status[i] == INVALID -> snd ! UPDATE_FAIL_MALFORMED_HTLC; snd ! ERROR; goto FAIL_CHANNEL;
+    :: status[i] == INVALID ->
+       if
+         :: snd ! UPDATE_FAIL_HTLC ->
+            if
+              :: snd ! ERROR -> goto FAIL_CHANNEL;
+              :: skip;
+            fi
+         :: skip;
+       fi
+    :: status[i] == INVALID ->
+       if
+         :: snd ! UPDATE_FAIL_MALFORMED_HTLC ->
+            if
+              :: snd ! ERROR -> goto FAIL_CHANNEL;
+              :: skip;
+            fi
+         :: skip;
+       fi
 
     /* Use this transition if the received HTLC is deemed valid. (9) */
     :: status[i] == VALID && desynced[i] == false -> goto MORE_HTLCS_WAIT;
 
     /* The out-of-sync `UPDATE_ADD_HTLC` received was valid. (42) */
     :: status[i] == VALID && desynced[i] == true -> goto RESYNC;
-  fi
+  od
 
 MORE_HTLCS_WAIT:
   state[i] = MoreHtlcsWaitState;
   run AddHtlc(i)
-  if
+  do
     /* Receive additional HTLCs from the counterparty. Cannot take this path if
        recovering from out of sync commitments or if in the process of fulfilling an
        HTLC. (7) */
     :: desynced[i] == false && fulfilled[i] == false ->
        if
          :: rcv ? UPDATE_ADD_HTLC -> sent_or_received[i] = RECV; goto VAL_HTLC;
+         :: skip;
        fi
 
     /* Send an error if adding another HTLC puts the local node over its max HTLC limit. (31) */
@@ -224,7 +243,10 @@ MORE_HTLCS_WAIT:
        (sent or received) did not put the local node over the `maxCurrentHtlcs`
        limit. (6) */
     :: status[i] == VALID && fulfilled[i] == false && desynced[i] == false ->
-       snd ! UPDATE_ADD_HTLC; sent_or_received[i] = SEND; goto MORE_HTLCS_WAIT;
+       if
+         :: snd ! UPDATE_ADD_HTLC -> sent_or_received[i] = SEND; goto MORE_HTLCS_WAIT;
+         :: skip;
+       fi
 
     /* The counterparty sends the first `COMMITMENT_SIGNED`. Once a node sends or
        receives a `COMMITMENT_SIGNED`, it must complete the pair before adding new
@@ -234,6 +256,7 @@ MORE_HTLCS_WAIT:
     :: status[i] == VALID ->
        if
          :: rcv ? COMMITMENT_SIGNED; desynced[i] = false; goto VAL_PRIMARY_COMM;
+         :: skip;
        fi
 
     /* Once a node sends or receives a `COMMITMENT_SIGNED`, it must complete the
@@ -243,8 +266,9 @@ MORE_HTLCS_WAIT:
     :: status[i] == VALID ->
        if
          :: snd ! COMMITMENT_SIGNED; desynced[i] = false; goto COMM_ACK_WAIT;
+         :: skip;
        fi
-  fi
+  od
 
 RESYNC:
   state[i] = ResyncState;
@@ -255,7 +279,7 @@ RESYNC:
 
     /* Fail the channel if the other node timesout or sends an error during
        resynchronization. (45) */
-    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: snd ! ERROR; goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
 
     /* The nodes exchanged `UPDATE_ADD_HTLC`s concurrently. One node also send a
@@ -285,11 +309,10 @@ COMM_ACK_WAIT:
 
     /* There is no timeout specified in the specification, but there should be. */
     /* If the local node times out, send an `ERROR`. (17) */
-    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: snd ! ERROR -> goto FAIL_CHANNEL;
 
     /* If an `ERROR` is received, fail the channel. (17) */
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
-
 
     /* Commitments were sent sequentially. The counterparty acked a commitment before
        sending its own. (12) */
@@ -305,12 +328,13 @@ COMM_ACK_WAIT:
 VAL_SEQ_ACK_1:
   state[i] = ValSeqAck1State;
   run ValidateMsg(i);
-  if
+  do
     /* Receive sequential commitment, but only if the previously received ack was
        valid, and the peers are in sync. (13) */
     :: status[i] == VALID && desynced[i] == false ->
        if
          :: rcv ? COMMITMENT_SIGNED -> goto VAL_COMM;
+         :: skip;
        fi
 
     /* This transition should only be taken if the previous transition was `44`.
@@ -322,31 +346,40 @@ VAL_SEQ_ACK_1:
     /* There is no timeout specified in the specification, but there should be.
        If the local node times out, send an `ERROR`. Also send an error if the
        previously received ack is invalid. (14) */
-    :: timeout || status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: snd ! ERROR -> goto FAIL_CHANNEL;
+    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
 
     /* If an `ERROR` is received, fail the channel. (14) */
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
-  fi
+  od
 
 VAL_COMM:
   state[i] = ValCommitmentState;
   run ValidateMsg(i);
-  if
+  do
     /* If the previously received commitment is valid, send an ack. Then wait for
        the HTLC fulfillment. (15) */
-    :: status[i] == VALID -> snd ! REVOKE_AND_ACK; goto HTLC_FULFILL_WAIT;
+    :: status[i] == VALID ->
+       if
+         :: snd ! REVOKE_AND_ACK -> goto HTLC_FULFILL_WAIT;
+         :: skip;
+       fi
 
     /* If the received commitment is invalid, send an `ERROR` and fail the channel. (16) */
-    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: status[i] == INVALID ->
+       if
+         :: snd ! ERROR -> goto FAIL_CHANNEL;
+         :: skip;
+       fi
 
     /* Can receive an `ERROR` message at any time. (16) */
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
-  fi
+  od
 
 VAL_CONC_COMM:
   state[i] = ValConcCommitmentState;
   run ValidateMsg(i);
-  if
+  do
     /* Both commitments have been exchanged, now we need to exchange both acks.
        Either order is fine. (21) */
     :: status[i] == VALID ->
@@ -354,26 +387,30 @@ VAL_CONC_COMM:
          :: snd ! REVOKE_AND_ACK ->
             if
               :: rcv ? REVOKE_AND_ACK -> goto VAL_CONC_ACK;
+              :: skip;
             fi
          :: rcv ? REVOKE_AND_ACK ->
             if
               :: snd ! REVOKE_AND_ACK -> goto VAL_CONC_ACK;
+              :: skip;
             fi
+         :: skip;
        fi
 
     /* There is no timeout specified in the specification, but there should be.
        If the local node times out, send an `ERROR`. Also send an error if the
        previously received commitment is invalid. (20) */
-    :: timeout || status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: snd ! ERROR -> goto FAIL_CHANNEL;
+    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
 
     /* If an `ERROR` is received, fail the channel. (20) */
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
-  fi
+  od
 
 VAL_PRIMARY_COMM:
   state[i] = ValPrimaryCommitmentState;
   run ValidateMsg(i);
-  if
+  do
     /* Concurrent commitment swap. Send local commitment before swapping acks. (28) */
     :: status[i] == VALID ->
        if
@@ -382,38 +419,58 @@ VAL_PRIMARY_COMM:
               :: snd ! REVOKE_AND_ACK ->
                  if
                    :: rcv ? REVOKE_AND_ACK -> goto VAL_CONC_ACK;
+                   :: skip
                  fi
               :: rcv ? REVOKE_AND_ACK ->
                  if
                    :: snd ! REVOKE_AND_ACK -> goto VAL_CONC_ACK;
+                   :: skip;
                  fi
+              :: skip;
             fi
+         :: skip;
        fi
 
     /* Send the ack and new commitment. (24) */
-    :: status[i] == VALID -> snd ! REVOKE_AND_ACK; snd ! COMMITMENT_SIGNED; goto ACK_WAIT;
+    :: status[i] == VALID ->
+       if
+         :: snd ! REVOKE_AND_ACK ->
+            if
+              :: snd ! COMMITMENT_SIGNED -> goto ACK_WAIT;
+              :: skip;
+            fi
+         :: skip;
+       fi
 
     /* If the received commitment is invalid, send an `ERROR` and fail the channel. (23) */
-    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: status[i] == INVALID ->
+       if
+         :: snd ! ERROR -> goto FAIL_CHANNEL;
+         :: skip;
+       fi
 
     /* Can receive an `ERROR` message at any time. (23) */
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
-  fi
+  od
 
 VAL_CONC_ACK:
   state[i] = ValConcAckState;
   run ValidateMsg(i);
-  if
+  do
     /* Ack is valid. (32) */
     :: status[i] == VALID -> goto HTLC_FULFILL_WAIT;
 
     /* If an `ERROR` is received, fail the channel. There is no timeout specified
        in the specification, but there should be. If the local node times out, send
        an `ERROR`. Also send an error if the previously received ack is invalid. (22) */
-    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
-    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: status[i] == INVALID ->
+       if
+         :: snd ! ERROR -> goto FAIL_CHANNEL;
+         :: skip;
+       fi
+    :: snd ! ERROR -> goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
-  fi
+  od
 
 ACK_WAIT:
   state[i] = AckWaitState;
@@ -424,75 +481,95 @@ ACK_WAIT:
     /* If an `ERROR` is received, fail the channel. There is no timeout specified
        in the specification, but there should be. If the local node times out, send
        an `ERROR`. (25) */
-    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: snd ! ERROR -> goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
   fi
 
 VAL_SEQ_ACK_2:
   state[i] = ValSeqAck2State;
   run ValidateMsg(i);
-  if
+  do
     /* If the previously received ack was valid, wait for the HTLC fulfillment. (29) */
     :: status[i] == VALID -> goto HTLC_FULFILL_WAIT;
 
     /* If an `ERROR` is received, fail the channel. Send an `ERROR` if the
        previously received ack is invalid. (27) */
-    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: status[i] == INVALID ->
+       if
+         :: snd ! ERROR -> goto FAIL_CHANNEL;
+         :: skip;
+       fi
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
-  fi
+  od
 
 HTLC_FULFILL_WAIT:
   state[i] = HtlcFulfillWaitState;
-  if
+  do
     /* HTLC deletion was successful, and no more HTLCs need to be settled. Return
        to `FUNDED` state. (36) */
     :: fulfilled[i] == true -> fulfilled[i] = false; goto FUNDED;
 
     /* Send an HTLC fulfillment. (37) */
-    :: fulfilled[i] == false -> snd ! UPDATE_FULFILL_HTLC; sent_or_received[i] = SEND; goto DEL_HTLC;
+    :: fulfilled[i] == false ->
+       if
+         :: snd ! UPDATE_FULFILL_HTLC -> sent_or_received[i] = SEND; goto DEL_HTLC;
+         :: skip;
+       fi
 
 
     /* Received an HTLC fulfillment. Proceed to validation steps. (33) */
     :: fulfilled[i] == false ->
        if
          :: rcv ? UPDATE_FULFILL_HTLC -> goto VAL_FULFILL;
+         :: skip;
        fi
 
     /* The local node might time out and thus be forced to fail the channel,
        however, the transaction is actually complete. The remaining commitment/ack
        pair is just to make the transactions smaller, for block space
        efficiency. (30) */
-    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: snd ! ERROR -> goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
-  fi
+  od
 
 VAL_FULFILL:
   state[i] = ValidateFulfillmentState;
   run ValidateMsg(i);
-  if
+  do
     /* HTLC is valid, proceed to deleting it. (35) */
     :: status[i] == VALID -> sent_or_received[i] = RECV; goto DEL_HTLC;
 
     /* Fulfillment is invalid, Fail channel. (34) */
-    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
-  fi
+    :: status[i] == INVALID ->
+       if
+         :: snd ! ERROR -> goto FAIL_CHANNEL;
+         :: skip;
+       fi
+  od
 
 DEL_HTLC:
   state[i] = DeleteHtlcState;
   run DeleteHtlc(i);
-  if
+  do
     /* HTLC deletion was successful, but more HTLCs remain to be removed. (40) */
-    :: status[i] == VALID && is_more[i] == MORE; goto HTLC_FULFILL_WAIT;
+    :: status[i] == VALID && is_more[i] == MORE -> goto HTLC_FULFILL_WAIT;
 
     /* All HTLCs have been fulfilled, but the two parties still need to exchange
        commitments and revocations. This is to reduce the complexity (i.e. size) of
        the logic that needs to be in the redeemable transactions. (39) */
-    :: status[i] == VALID && is_more[i] == NO_MORE; fulfilled[i] = true; goto MORE_HTLCS_WAIT;
+    :: status[i] == VALID && is_more[i] == NO_MORE -> fulfilled[i] = true; goto MORE_HTLCS_WAIT;
 
     /* Cannot delete HTLC, because the local peer created it. You can only delete
        HTLCs created by the counterparty. (38) */
-    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
-  fi
+    :: status[i] == INVALID ->
+       if
+         :: snd ! ERROR -> goto FAIL_CHANNEL;
+         :: skip;
+       fi
+
+    /* The other peer failed, so we must fail as well */
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+  od
 
 FAIL_CHANNEL:
   state[i] = FailChannelState;

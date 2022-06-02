@@ -110,19 +110,17 @@ mtype is_more[2];
 /* This function simulates validating a received message. A message
    can either be valid or invalid. It is essentially a coin flip that
    causes both outcomes to be checked. */
-proctype ValidateMsg(bit peer) {
-  atomic {
-    do
-      :: status[peer] = VALID; break;
-      :: status[peer] = INVALID; break;
-    od
-  }
+inline ValidateMsg(peer) {
+  if
+    :: status[peer] = VALID;
+    :: status[peer] = INVALID;
+  fi
 }
 
 /* Add an HTLC to the local node. The second parameter indicates whether
    the HTLC was sent or received. Return INVALID if that puts the
    local node over `maxCurrentHtlcs`. Return VALID otherwise. */
-proctype AddHtlc(bit peer) {
+inline AddHtlc(peer) {
   atomic {
     if
       /* First, make sure we are not over the HTLC limit. */
@@ -146,7 +144,7 @@ proctype AddHtlc(bit peer) {
   }
 }
 
-proctype DeleteHtlc(bit peer) {
+inline DeleteHtlc(peer) {
   atomic {
     if
       /* Remove the remote's HTLC if it was added by the local peer, and
@@ -194,7 +192,7 @@ FUNDED:
 
 VAL_HTLC:
   state[i] = ValHtlcState;
-  run ValidateMsg(i);
+  ValidateMsg(i);
   do
     /* Send an error if the HTLC is malformed or incorrect. (8) */
     :: status[i] == INVALID ->
@@ -225,7 +223,7 @@ VAL_HTLC:
 
 MORE_HTLCS_WAIT:
   state[i] = MoreHtlcsWaitState;
-  run AddHtlc(i)
+  AddHtlc(i)
   do
     /* Receive additional HTLCs from the counterparty. Cannot take this path if
        recovering from out of sync commitments or if in the process of fulfilling an
@@ -290,7 +288,7 @@ RESYNC:
 
 VAL_DESYNC_COM:
   state[i] = ValDesyncComState;
-  run ValidateMsg(i);
+  ValidateMsg(i);
   if
     /* The concurrent commitment is well-formed. Next step is to either send or
        receive commitments that include all the HTLCs. (48) */
@@ -327,7 +325,7 @@ COMM_ACK_WAIT:
 
 VAL_SEQ_ACK_1:
   state[i] = ValSeqAck1State;
-  run ValidateMsg(i);
+  ValidateMsg(i);
   do
     /* Receive sequential commitment, but only if the previously received ack was
        valid, and the peers are in sync. (13) */
@@ -355,7 +353,7 @@ VAL_SEQ_ACK_1:
 
 VAL_COMM:
   state[i] = ValCommitmentState;
-  run ValidateMsg(i);
+  ValidateMsg(i);
   do
     /* If the previously received commitment is valid, send an ack. Then wait for
        the HTLC fulfillment. (15) */
@@ -378,7 +376,7 @@ VAL_COMM:
 
 VAL_CONC_COMM:
   state[i] = ValConcCommitmentState;
-  run ValidateMsg(i);
+  ValidateMsg(i);
   do
     /* Both commitments have been exchanged, now we need to exchange both acks.
        Either order is fine. (21) */
@@ -409,7 +407,7 @@ VAL_CONC_COMM:
 
 VAL_PRIMARY_COMM:
   state[i] = ValPrimaryCommitmentState;
-  run ValidateMsg(i);
+  ValidateMsg(i);
   do
     /* Concurrent commitment swap. Send local commitment before swapping acks. (28) */
     :: status[i] == VALID ->
@@ -455,7 +453,7 @@ VAL_PRIMARY_COMM:
 
 VAL_CONC_ACK:
   state[i] = ValConcAckState;
-  run ValidateMsg(i);
+  ValidateMsg(i);
   do
     /* Ack is valid. (32) */
     :: status[i] == VALID -> goto HTLC_FULFILL_WAIT;
@@ -487,7 +485,7 @@ ACK_WAIT:
 
 VAL_SEQ_ACK_2:
   state[i] = ValSeqAck2State;
-  run ValidateMsg(i);
+  ValidateMsg(i);
   do
     /* If the previously received ack was valid, wait for the HTLC fulfillment. (29) */
     :: status[i] == VALID -> goto HTLC_FULFILL_WAIT;
@@ -534,7 +532,7 @@ HTLC_FULFILL_WAIT:
 
 VAL_FULFILL:
   state[i] = ValidateFulfillmentState;
-  run ValidateMsg(i);
+  ValidateMsg(i);
   do
     /* HTLC is valid, proceed to deleting it. (35) */
     :: status[i] == VALID -> sent_or_received[i] = RECV; goto DEL_HTLC;
@@ -549,7 +547,7 @@ VAL_FULFILL:
 
 DEL_HTLC:
   state[i] = DeleteHtlcState;
-  run DeleteHtlc(i);
+  DeleteHtlc(i);
   do
     /* HTLC deletion was successful, but more HTLCs remain to be removed. (40) */
     :: status[i] == VALID && is_more[i] == MORE -> goto HTLC_FULFILL_WAIT;

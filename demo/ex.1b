@@ -1,0 +1,8 @@
+#define N	14
+init {	/* file: ex.1b */
+	chan dummy = [N] of { byte };
+	do
+	:: dummy!85
+	:: dummy!170
+	od
+}

@@ -24,9 +24,9 @@ mtype = {
   MORE, NO_MORE
 }
 
-/* Rendezvous communication channels */
-chan AtoB = [0] of { mtype };
-chan BtoA = [0] of { mtype };
+/* Messages can be delayed in the channel. */
+chan AtoB = [1] of { mtype };
+chan BtoA = [1] of { mtype };
 
 int state[2];
 int pids[2];
@@ -417,7 +417,7 @@ VAL_PRIMARY_COMM:
               :: snd ! REVOKE_AND_ACK ->
                  if
                    :: rcv ? REVOKE_AND_ACK -> goto VAL_CONC_ACK;
-                   :: skip
+                   :: skip;
                  fi
               :: rcv ? REVOKE_AND_ACK ->
                  if

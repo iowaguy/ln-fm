@@ -188,6 +188,9 @@ FUNDED:
 
     /* Send the first HTLC to the counterparty. (3) */
     :: snd ! UPDATE_ADD_HTLC -> sent_or_received[i] = SEND; goto MORE_HTLCS_WAIT;
+
+    /* This signifies the run was valid. */
+    :: goto end;
   fi
 
 VAL_HTLC:
@@ -235,7 +238,20 @@ MORE_HTLCS_WAIT:
        fi
 
     /* Send an error if adding another HTLC puts the local node over its max HTLC limit. (31) */
-    :: status[i] == INVALID -> goto FAIL_CHANNEL;
+    :: status[i] == INVALID ->
+       if
+         :: snd ! ERROR -> goto FAIL_CHANNEL;
+
+         /* Receive an error if counterparty has failed and already sent an ERROR. */
+         :: rcv ? ERROR -> goto FAIL_CHANNEL;
+
+         /* The counterparty may have sent an HTLC before learning that the local
+            node has failed. */
+         :: rcv ? UPDATE_ADD_HTLC -> goto FAIL_CHANNEL;
+
+         /* If the other peer is unreachable, fail. */
+         :: timeout -> goto FAIL_CHANNEL;
+       fi
 
     /* Send additional HTLCs to the counterparty, but only if the previous HTLC
        (sent or received) did not put the local node over the `maxCurrentHtlcs`
@@ -270,10 +286,14 @@ MORE_HTLCS_WAIT:
 
 RESYNC:
   state[i] = ResyncState;
-  if
+  do
     /* A `COMMITMENT_SIGNED` signed was sent concurrently (in addition to concurrent HTLCs),
        the local node needs to ack it. (43) */
-    :: rcv ? COMMITMENT_SIGNED -> snd ! REVOKE_AND_ACK; goto VAL_DESYNC_COM;
+    :: rcv ? COMMITMENT_SIGNED ->
+       if
+         :: snd ! REVOKE_AND_ACK -> goto VAL_DESYNC_COM;
+         :: skip;
+       fi
 
     /* Fail the channel if the other node timesout or sends an error during
        resynchronization. (45) */
@@ -284,19 +304,27 @@ RESYNC:
        `COMMITMENT_SIGNED`, which the counterparty has acked but not sent their own
        `COMMITMENT_SIGNED` (yet). (44) */
     :: rcv ? REVOKE_AND_ACK -> goto VAL_SEQ_ACK_1;
-  fi
+
+    :: timeout -> goto FAIL_CHANNEL;
+  od
 
 VAL_DESYNC_COM:
   state[i] = ValDesyncComState;
   ValidateMsg(i);
-  if
+  do
     /* The concurrent commitment is well-formed. Next step is to either send or
-       receive commitments that include all the HTLCs. (48) */
+      receive commitments that include all the HTLCs. (48) */
     :: status[i] == VALID -> goto MORE_HTLCS_WAIT;
 
     /* Fail the channel if the commitment is malformed. (47) */
-    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
-  fi
+    :: status[i] == INVALID ->
+        if
+          :: snd ! ERROR -> goto FAIL_CHANNEL;
+          :: skip;
+        fi
+
+    :: timeout -> goto FAIL_CHANNEL;
+  od
 
 COMM_ACK_WAIT:
   state[i] = CommitmentAckWaitState;
@@ -345,10 +373,16 @@ VAL_SEQ_ACK_1:
        If the local node times out, send an `ERROR`. Also send an error if the
        previously received ack is invalid. (14) */
     :: snd ! ERROR -> goto FAIL_CHANNEL;
-    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: status[i] == INVALID ->
+       if
+         :: snd ! ERROR -> goto FAIL_CHANNEL;
+         :: skip;
+       fi
 
     /* If an `ERROR` is received, fail the channel. (14) */
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
+
+    :: timeout -> goto FAIL_CHANNEL;
   od
 
 VAL_COMM:
@@ -399,10 +433,16 @@ VAL_CONC_COMM:
        If the local node times out, send an `ERROR`. Also send an error if the
        previously received commitment is invalid. (20) */
     :: snd ! ERROR -> goto FAIL_CHANNEL;
-    :: status[i] == INVALID -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: status[i] == INVALID ->
+       if
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: skip;
+       fi
 
     /* If an `ERROR` is received, fail the channel. (20) */
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
+
+    :: timeout -> goto FAIL_CHANNEL;
   od
 
 VAL_PRIMARY_COMM:
@@ -481,6 +521,8 @@ ACK_WAIT:
        an `ERROR`. (25) */
     :: snd ! ERROR -> goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
+
+    :: timeout -> goto FAIL_CHANNEL;
   fi
 
 VAL_SEQ_ACK_2:

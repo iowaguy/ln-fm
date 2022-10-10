@@ -125,6 +125,6 @@ end:
 init {
   state[0] = CloseIdleState;
   state[1] = CloseIdleState;
-  run LightningNormal(AtoB, BtoA, 0);
-  run LightningNormal(BtoA, AtoB, 1);
+  run LightningClosing(AtoB, BtoA, 0);
+  run LightningClosing(BtoA, AtoB, 1);
 }

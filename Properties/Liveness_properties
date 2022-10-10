@@ -1,0 +1,57 @@
+/* Broad property for liveness. A node that starts at MORE_HTLCS_WAIT 
+must eventually reach MORE_HTLCS_WAIT or FUNDED or FAIL_CHANNEL.
+LTL: MORE_HTLCS_WAIT |= F(FUNDED or MORE_HTLCS_WAIT or FAIL_CHANNEL). */
+
+ltl liveness1 {
+    always (
+        (state[0] == MORE_HTLCS_WAIT)
+        implies (
+            eventually(
+                    (state[0] == FUNDED || state[0] == MORE_HTLCS_WAIT || state[0] == FAIL_CHANNEL)
+            )
+        )
+    )
+}
+
+/* Above property does not include CLOSE_CHANNEL. This 
+state can only be reached from the FUNDED state. So the 
+following property states that a node starting 
+at FUNDED eventually reaches FUNDED or MORE_HTLCS_WAIT or FAIL_CHANNEL or CLOSE_CHANNEL.
+LTL: FUNDED |= F(FUNDED or MORE_HTLCS_WAIT or FAIL_CHANNEL or CLOSE_CHANNEL). */
+
+ltl liveness2 {
+    always (
+        (state[0] == FUNDED)
+        implies (
+            eventually(
+                    (state[0] == FUNDED || state[0] == MORE_HTLCS_WAIT || state[0] == FAIL_CHANNEL || state[0] == CLOSE_CHANNEL)
+            )
+        )
+    )
+}
+
+/* Some extra properties that should definitely satisfy if the above properties hold 
+LTL: (FUNDED || MORE_HTLCS_WAIT) |= F(HTLC_FULFILL_WAIT || FAIL_CHANNEL)
+LTL: HTLC_FULFILL_WAIT |= F(MORE_HTLCS_WAIT || FUNDED || FAIL_CHANNEL)
+
+ltl liveness3 {
+    always (
+        (state[0] == FUNDED || state[0] == MORE_HTLCS_WAIT)
+        implies (
+            eventually(
+                    (state[0] == HTLC_FULFILL_WAIT || state[0] == FAIL_CHANNEL)
+            )
+        )
+    )
+}
+
+ltl liveness3 {
+    always (
+        (state[0] == HTLC_FULFILL_WAIT)
+        implies (
+            eventually(
+                (state[0] == FUNDED || state[0] == MORE_HTLCS_WAIT || state[0] == FAIL_CHANNEL)
+            )
+        )
+    )
+}

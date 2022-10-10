@@ -31,8 +31,8 @@ ltl liveness2 {
 }
 
 /* Some extra properties that should definitely satisfy if the above properties hold 
-LTL: (FUNDED || MORE_HTLCS_WAIT) |= F(HTLC_FULFILL_WAIT || FAIL_CHANNEL)
-LTL: HTLC_FULFILL_WAIT |= F(MORE_HTLCS_WAIT || FUNDED || FAIL_CHANNEL)
+LTL: (FUNDED or MORE_HTLCS_WAIT) |= F(HTLC_FULFILL_WAIT or FAIL_CHANNEL)
+LTL: HTLC_FULFILL_WAIT |= F(MORE_HTLCS_WAIT or FUNDED or FAIL_CHANNEL)
 
 ltl liveness3 {
     always (

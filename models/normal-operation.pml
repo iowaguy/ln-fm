@@ -188,9 +188,6 @@ FUNDED:
 
     /* Send the first HTLC to the counterparty. (3) */
     :: snd ! UPDATE_ADD_HTLC -> sent_or_received[i] = SEND; goto MORE_HTLCS_WAIT;
-
-    /* This signifies the run was valid. */
-    :: goto end;
   fi
 
 VAL_HTLC:
@@ -545,9 +542,8 @@ VAL_SEQ_ACK_2:
 HTLC_FULFILL_WAIT:
   state[i] = HtlcFulfillWaitState;
   do
-    /* HTLC deletion was successful, and no more HTLCs need to be settled. Return
-       to `FUNDED` state. (36) */
-    :: fulfilled[i] == true -> fulfilled[i] = false; goto FUNDED;
+    /* HTLC deletion was successful, and no more HTLCs need to be settled. Complete run. (36) */
+    :: fulfilled[i] == true -> fulfilled[i] = false; goto end;
 
     /* Send an HTLC fulfillment. (37) */
     :: fulfilled[i] == false ->

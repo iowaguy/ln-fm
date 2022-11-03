@@ -82,6 +82,7 @@ mtype is_more[2];
 #define ResyncState                    16
 #define ValDesyncComState              17
 #define ValConcAckState                18
+#define AcceptState                    19
 #define EndState                       -1
 
 /* The HTLC_OPEN state is always eventually followed by either: funded, */
@@ -543,7 +544,7 @@ HTLC_FULFILL_WAIT:
   state[i] = HtlcFulfillWaitState;
   do
     /* HTLC deletion was successful, and no more HTLCs need to be settled. Complete run. (36) */
-    :: fulfilled[i] == true -> fulfilled[i] = false; goto end;
+    :: fulfilled[i] == true -> fulfilled[i] = false; goto ACCEPT;
 
     /* Send an HTLC fulfillment. (37) */
     :: fulfilled[i] == false ->
@@ -609,6 +610,10 @@ DEL_HTLC:
 
 FAIL_CHANNEL:
   state[i] = FailChannelState;
+  goto end;
+
+ACCEPT:
+  state[i] = AcceptState;
   goto end;
 
 end:

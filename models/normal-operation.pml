@@ -98,29 +98,6 @@ ltl liveness1 {
     )
 }
 
-/* The HTLC_OPEN state is always eventually followed by either: funded, */
-/* ackwait, confirmcomm, fail or close*/
-/* ltl phi1 { */
-/*   always ( */
-/*     (state[0] == HtlcOpenState) */
-/*     implies ( */
-/*       eventually ( */
-/*         ( */
-/*           state[0] == FundedState     || */
-/*           state[0] == AckWaitState     || */
-/*           state[0] == ConfirmCommState || */
-/*           state[0] == FailState || */
-/*           state[0] == CloseState */
-/*         ) */
-/*       ) */
-/*     ) */
-/*   ) */
-/* } */
-
-/* ltl state3canBeForever { */
-/* 	! ( eventually ( always (state[0] == AckWaitState) ) ) */
-/* } */
-
 /* This function simulates validating a received message. A message
    can either be valid or invalid. It is essentially a coin flip that
    causes both outcomes to be checked. */

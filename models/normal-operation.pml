@@ -85,19 +85,17 @@ mtype is_more[2];
 #define AcceptState                    19
 #define EndState                       -1
 
-/* Broad property for liveness. A node that starts at MORE_HTLCS_WAIT
-must eventually reach MORE_HTLCS_WAIT or FUNDED or FAIL_CHANNEL.
-LTL: MORE_HTLCS_WAIT |= F(FUNDED or MORE_HTLCS_WAIT or FAIL_CHANNEL). */
-
+/* From FUNDED a peer will eventually reach ACCEPT or FAIL CHANNEL. */
 ltl liveness1 {
-  always (
-    (state[0] == MoreHtlcsWaitState)
-    implies (eventually (state[0] != MoreHtlcsWaitState))
-    implies (eventually (
-        (state[0] == FundedState || state[0] == MoreHtlcsWaitState || state[0] == FailChannelState)
-      )
+    always (
+        (state[0] == FundedState)
+        implies (
+            eventually(
+                    (state[0] == AcceptState ||
+                     state[0] == FailChannelState)
+            )
+        )
     )
-  )
 }
 
 /* The HTLC_OPEN state is always eventually followed by either: funded, */

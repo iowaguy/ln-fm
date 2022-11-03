@@ -635,8 +635,10 @@ end:
 
 
 init {
-  state[0] = FundedState;
-  state[1] = FundedState;
-  run LightningNormal(AtoB, BtoA, 0);
-  run LightningNormal(BtoA, AtoB, 1);
+  atomic {
+    state[0] = FundedState;
+    state[1] = FundedState;
+    run LightningNormal(AtoB, BtoA, 0);
+    run LightningNormal(BtoA, AtoB, 1);
+  }
 }

@@ -45,7 +45,7 @@ ltl liveness3 {
     )
 }
 
-ltl liveness3 {
+ltl liveness4 {
     always (
         (state[0] == HTLC_FULFILL_WAIT)
         implies (

@@ -7,7 +7,7 @@ verifynormal: | $(modeldir)
 	rm -f pan
 
 replaytrace:
-	spin -t0 -w -s -r -c $(modeldir)/normal-operation.pml
+	spin -t0 -w -s -r -c -k normal-operation.pml.trail -p $(modeldir)/normal-operation.pml
 
 interactive:
 	spin -i $(modeldir)/normal-operation.pml

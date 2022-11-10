@@ -98,6 +98,25 @@ ltl liveness1 {
     )
 }
 
+/* If a peer validates the commitment signed message, the other peer
+   should eventually receive a REVOKE_AND_ACK or end in FAIL_CHANNEL. */
+ltl liveness2 {
+    always (
+      (((state[0] == ValDesyncComState) implies (next (state[0] == MoreHtlcsWaitState))) ||
+       ((state[0] == ValPrimaryCommitmentState) implies (next (state[0] == AckWaitState))) ||
+       ((state[0] == ValConcCommitmentState) implies (next (state[0] == ValConcAckState))) ||
+       ((state[0] == ValCommitmentState) implies (next (state[0] == HtlcFulfillWaitState))))
+        implies (
+            eventually(
+                    (state[0] == ValSeqAck1State ||
+                     state[0] == ValSeqAck2State ||
+                     state[0] == ValConcAckState ||
+                     state[0] == FailChannelState)
+            )
+        )
+    )
+}
+
 /* This function simulates validating a received message. A message
    can either be valid or invalid. It is essentially a coin flip that
    causes both outcomes to be checked. */

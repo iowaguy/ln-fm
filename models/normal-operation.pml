@@ -191,18 +191,20 @@ VAL_HTLC:
          :: snd ! UPDATE_FAIL_HTLC ->
             if
               :: snd ! ERROR -> goto FAIL_CHANNEL;
-              :: skip;
+              :: timeout -> goto FAIL_CHANNEL;
             fi
-         :: skip;
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
     :: status[i] == INVALID ->
        if
          :: snd ! UPDATE_FAIL_MALFORMED_HTLC ->
             if
               :: snd ! ERROR -> goto FAIL_CHANNEL;
-              :: skip;
+              :: timeout -> goto FAIL_CHANNEL;
             fi
-         :: skip;
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* Use this transition if the received HTLC is deemed valid. (9) */
@@ -222,7 +224,8 @@ MORE_HTLCS_WAIT:
     :: desynced[i] == false && fulfilled[i] == false ->
        if
          :: rcv ? UPDATE_ADD_HTLC -> sent_or_received[i] = RECV; goto VAL_HTLC;
-         :: skip;
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* Send an error if adding another HTLC puts the local node over its max HTLC limit. (31) */
@@ -238,6 +241,7 @@ MORE_HTLCS_WAIT:
          :: rcv ? UPDATE_ADD_HTLC -> goto FAIL_CHANNEL;
 
          /* If the other peer is unreachable, fail. */
+         :: snd ! ERROR; goto FAIL_CHANNEL;
          :: timeout -> goto FAIL_CHANNEL;
        fi
 
@@ -247,7 +251,9 @@ MORE_HTLCS_WAIT:
     :: status[i] == VALID && fulfilled[i] == false && desynced[i] == false ->
        if
          :: snd ! UPDATE_ADD_HTLC -> sent_or_received[i] = SEND; goto MORE_HTLCS_WAIT;
-         :: skip;
+
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* The counterparty sends the first `COMMITMENT_SIGNED`. Once a node sends or
@@ -258,7 +264,8 @@ MORE_HTLCS_WAIT:
     :: status[i] == VALID ->
        if
          :: rcv ? COMMITMENT_SIGNED; desynced[i] = false; goto VAL_PRIMARY_COMM;
-         :: skip;
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* Once a node sends or receives a `COMMITMENT_SIGNED`, it must complete the
@@ -268,8 +275,14 @@ MORE_HTLCS_WAIT:
     :: status[i] == VALID ->
        if
          :: snd ! COMMITMENT_SIGNED; desynced[i] = false; goto COMM_ACK_WAIT;
-         :: skip;
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
+
+
+    /* If the other peer is unreachable, fail. Send an ERROR if possible. (31) */
+    :: snd ! ERROR; goto FAIL_CHANNEL;
+    :: timeout -> goto FAIL_CHANNEL;
   od
 
 RESYNC:
@@ -280,7 +293,8 @@ RESYNC:
     :: rcv ? COMMITMENT_SIGNED ->
        if
          :: snd ! REVOKE_AND_ACK -> goto VAL_DESYNC_COM;
-         :: skip;
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* Fail the channel if the other node timesout or sends an error during
@@ -308,7 +322,7 @@ VAL_DESYNC_COM:
     :: status[i] == INVALID ->
         if
           :: snd ! ERROR -> goto FAIL_CHANNEL;
-          :: skip;
+          :: timeout -> goto FAIL_CHANNEL;
         fi
 
     :: timeout -> goto FAIL_CHANNEL;
@@ -324,6 +338,7 @@ COMM_ACK_WAIT:
     /* There is no timeout specified in the specification, but there should be. */
     /* If the local node times out, send an `ERROR`. (17) */
     :: snd ! ERROR -> goto FAIL_CHANNEL;
+    :: timeout -> goto FAIL_CHANNEL;
 
     /* If an `ERROR` is received, fail the channel. (17) */
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
@@ -348,7 +363,8 @@ VAL_SEQ_ACK_1:
     :: status[i] == VALID && desynced[i] == false ->
        if
          :: rcv ? COMMITMENT_SIGNED -> goto VAL_COMM;
-         :: skip;
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* This transition should only be taken if the previous transition was `44`.
@@ -364,7 +380,7 @@ VAL_SEQ_ACK_1:
     :: status[i] == INVALID ->
        if
          :: snd ! ERROR -> goto FAIL_CHANNEL;
-         :: skip;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* If an `ERROR` is received, fail the channel. (14) */
@@ -382,14 +398,15 @@ VAL_COMM:
     :: status[i] == VALID ->
        if
          :: snd ! REVOKE_AND_ACK -> goto HTLC_FULFILL_WAIT;
-         :: skip;
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* If the received commitment is invalid, send an `ERROR` and fail the channel. (16) */
     :: status[i] == INVALID ->
        if
          :: snd ! ERROR -> goto FAIL_CHANNEL;
-         :: skip;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* Can receive an `ERROR` message at any time. (16) */
@@ -407,14 +424,17 @@ VAL_CONC_COMM:
          :: snd ! REVOKE_AND_ACK ->
             if
               :: rcv ? REVOKE_AND_ACK -> goto VAL_CONC_ACK;
-              :: skip;
+              :: snd ! ERROR; goto FAIL_CHANNEL;
+              :: timeout -> goto FAIL_CHANNEL;
             fi
          :: rcv ? REVOKE_AND_ACK ->
             if
               :: snd ! REVOKE_AND_ACK -> goto VAL_CONC_ACK;
-              :: skip;
+              :: snd ! ERROR; goto FAIL_CHANNEL;
+              :: timeout -> goto FAIL_CHANNEL;
             fi
-         :: skip;
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* There is no timeout specified in the specification, but there should be.
@@ -424,7 +444,7 @@ VAL_CONC_COMM:
     :: status[i] == INVALID ->
        if
          :: snd ! ERROR; goto FAIL_CHANNEL;
-         :: skip;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* If an `ERROR` is received, fail the channel. (20) */
@@ -445,16 +465,20 @@ VAL_PRIMARY_COMM:
               :: snd ! REVOKE_AND_ACK ->
                  if
                    :: rcv ? REVOKE_AND_ACK -> goto VAL_CONC_ACK;
-                   :: skip;
+                   :: snd ! ERROR; goto FAIL_CHANNEL;
+                   :: timeout -> goto FAIL_CHANNEL;
                  fi
               :: rcv ? REVOKE_AND_ACK ->
                  if
                    :: snd ! REVOKE_AND_ACK -> goto VAL_CONC_ACK;
-                   :: skip;
+                   :: snd ! ERROR; goto FAIL_CHANNEL;
+                   :: timeout -> goto FAIL_CHANNEL;
                  fi
-              :: skip;
+              :: snd ! ERROR; goto FAIL_CHANNEL;
+              :: timeout -> goto FAIL_CHANNEL;
             fi
-         :: skip;
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* Send the ack and new commitment. (24) */
@@ -463,16 +487,18 @@ VAL_PRIMARY_COMM:
          :: snd ! REVOKE_AND_ACK ->
             if
               :: snd ! COMMITMENT_SIGNED -> goto ACK_WAIT;
-              :: skip;
+              :: snd ! ERROR; goto FAIL_CHANNEL;
+              :: timeout -> goto FAIL_CHANNEL;
             fi
-         :: skip;
+         :: snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* If the received commitment is invalid, send an `ERROR` and fail the channel. (23) */
     :: status[i] == INVALID ->
        if
          :: snd ! ERROR -> goto FAIL_CHANNEL;
-         :: skip;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* Can receive an `ERROR` message at any time. (23) */
@@ -492,7 +518,7 @@ VAL_CONC_ACK:
     :: status[i] == INVALID ->
        if
          :: snd ! ERROR -> goto FAIL_CHANNEL;
-         :: skip;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
     :: snd ! ERROR -> goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
@@ -525,7 +551,7 @@ VAL_SEQ_ACK_2:
     :: status[i] == INVALID ->
        if
          :: snd ! ERROR -> goto FAIL_CHANNEL;
-         :: skip;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
   od
@@ -540,7 +566,8 @@ HTLC_FULFILL_WAIT:
     :: fulfilled[i] == false ->
        if
          :: snd ! UPDATE_FULFILL_HTLC -> sent_or_received[i] = SEND; goto DEL_HTLC;
-         :: skip;
+         :: snd ! ERROR -> goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
 
@@ -548,7 +575,8 @@ HTLC_FULFILL_WAIT:
     :: fulfilled[i] == false ->
        if
          :: rcv ? UPDATE_FULFILL_HTLC -> goto VAL_FULFILL;
-         :: skip;
+         :: snd ! ERROR -> goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* The local node might time out and thus be forced to fail the channel,
@@ -557,6 +585,7 @@ HTLC_FULFILL_WAIT:
        efficiency. (30) */
     :: snd ! ERROR -> goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
+    :: timeout -> goto FAIL_CHANNEL;
   od
 
 VAL_FULFILL:
@@ -570,7 +599,7 @@ VAL_FULFILL:
     :: status[i] == INVALID ->
        if
          :: snd ! ERROR -> goto FAIL_CHANNEL;
-         :: skip;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
   od
 
@@ -591,7 +620,7 @@ DEL_HTLC:
     :: status[i] == INVALID ->
        if
          :: snd ! ERROR -> goto FAIL_CHANNEL;
-         :: skip;
+         :: timeout -> goto FAIL_CHANNEL;
        fi
 
     /* The other peer failed, so we must fail as well */

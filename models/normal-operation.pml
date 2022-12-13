@@ -236,7 +236,10 @@ VAL_HTLC:
 
 MORE_HTLCS_WAIT:
   state[i] = MoreHtlcsWaitState;
-  AddHtlc(i)
+  if
+    :: fulfilled[i] == false -> AddHtlc(i);
+  fi
+
   do
     /* Receive additional HTLCs from the counterparty. Cannot take this path if
        recovering from out of sync commitments or if in the process of fulfilling an

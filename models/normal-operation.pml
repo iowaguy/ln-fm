@@ -589,6 +589,7 @@ HTLC_FULFILL_WAIT:
     :: fulfilled[i] == false ->
        if
          :: snd ! UPDATE_FULFILL_HTLC -> sent_or_received[i] = SEND; goto DEL_HTLC;
+         :: snd ! UPDATE_FAIL_HTLC -> sent_or_received[i] = SEND; goto DEL_HTLC;
          :: snd ! ERROR -> goto FAIL_CHANNEL;
          :: timeout -> goto FAIL_CHANNEL;
        fi
@@ -598,6 +599,7 @@ HTLC_FULFILL_WAIT:
     :: fulfilled[i] == false ->
        if
          :: rcv ? UPDATE_FULFILL_HTLC -> goto VAL_FULFILL;
+         :: rcv ? UPDATE_FAIL_HTLC -> goto VAL_FULFILL;
          :: snd ! ERROR -> goto FAIL_CHANNEL;
          :: timeout -> goto FAIL_CHANNEL;
        fi

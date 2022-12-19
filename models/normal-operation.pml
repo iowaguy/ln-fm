@@ -16,12 +16,6 @@ mtype = {
      usually leads to an error state. Used by the state machine,
      but not communicated on the wire in the actual protocol. */
   VALID, INVALID,
-
-  /* This is used to indicate whether or not there are more
-     HTLCs that need to be closed before returning to the
-     initial FUNDED state. Used by the state machine, but
-     not communicated on the wire in the actual protocol. */
-  MORE, NO_MORE
 }
 
 /* Messages can be delayed in the channel. */
@@ -61,7 +55,7 @@ mtype status[2];
 
 /* This variable indicates whether a peer has more HTLCs it needs
    to delete before it can be considered settled. */
-mtype is_more[2];
+bool is_more[2] = { false, false };
 
 #define FundedState                    0
 #define ValHtlcState                   1
@@ -139,8 +133,8 @@ inline AddHtlc(peer) {
          if
            /* If we sent the HTLC, add it to the local set,
               otherwise, add it to the remote set. */
-           :: sent_or_received[peer] == SEND -> localHtlcs[peer]++; status[peer] = VALID;
-           :: sent_or_received[peer] == RECV -> remoteHtlcs[peer]++; status[peer] = VALID;
+           :: sent_or_received[peer] == SEND -> localHtlcs[peer]++; status[peer] = VALID; is_more[peer] = true;
+           :: sent_or_received[peer] == RECV -> remoteHtlcs[peer]++; status[peer] = VALID; is_more[peer] = true;
          fi
 
       /* If we are over the HTLC limit, mark the latest as INVALID. */
@@ -161,16 +155,16 @@ inline DeleteHtlc(peer) {
       /* Remove the remote's HTLC if it was added by the local peer, and
          there are still HTLCs left to remove. */
       :: sent_or_received[peer] == SEND && remoteHtlcs[peer] > 1 ->
-         remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = MORE;
+         remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = true;
       :: sent_or_received[peer] == SEND && remoteHtlcs[peer] == 1 ->
-         remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = NO_MORE;
+         remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = false;
 
       /* Remove the local peer's HTLC if it was added by the remote, and
          there are still HTLCs left to remove. */
       :: sent_or_received[peer] == RECV && localHtlcs[peer] > 1 ->
-         localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = MORE;
+         localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = true;
       :: sent_or_received[peer] == RECV && localHtlcs[peer] == 1 ->
-         localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = NO_MORE;
+         localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = false;
 
       /* If there are no more HTLCs to remove, this is an error. Mark
          as INVALID. */
@@ -586,7 +580,7 @@ HTLC_FULFILL_WAIT:
     :: fulfilled[i] == true -> goto ACCEPT;
 
     /* Send an HTLC fulfillment, if there are more HTLCs and this round of HTLCs has not been fulfilled. (37) */
-    :: fulfilled[i] == false && is_more[i] == MORE ->
+    :: fulfilled[i] == false && is_more[i] == true ->
        if
          // TODO here I should only be able to send an UPDATE_FULFILL_HTLC if there are remaining outstanding HTLCs.
          // If there are no remaining outstanding HTLCs, then this should cause an error path to be followed.
@@ -599,7 +593,7 @@ HTLC_FULFILL_WAIT:
 
     /* Received an HTLC fulfillment, when this round of HTLCs had not yet been fulfilled, and there are still
        pending HTLCs. Proceed to validation steps. (33) */
-    :: fulfilled[i] == false && is_more[i] == MORE ->
+    :: fulfilled[i] == false && is_more[i] == true ->
        if
          :: rcv ? UPDATE_FULFILL_HTLC -> goto VAL_FULFILL;
          :: rcv ? UPDATE_FAIL_HTLC -> goto VAL_FULFILL;
@@ -611,7 +605,7 @@ HTLC_FULFILL_WAIT:
        the two parties still need to exchange commitments and revocations. This is to
        reduce the complexity (i.e. size) of the logic that needs to be in the
        redeemable transactions. (50) */
-    :: fulfilled[i] == false && is_more[i] == NO_MORE -> fulfilled[i] = true; goto MORE_HTLCS_WAIT;
+    :: fulfilled[i] == false && is_more[i] == false -> fulfilled[i] = true; goto MORE_HTLCS_WAIT;
 
     /* The local node might time out and thus be forced to fail the channel,
        however, the transaction is actually complete. The remaining commitment/ack

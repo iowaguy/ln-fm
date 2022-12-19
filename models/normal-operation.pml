@@ -160,16 +160,16 @@ inline DeleteHtlc(peer) {
     if
       /* Remove the remote's HTLC if it was added by the local peer, and
          there are still HTLCs left to remove. */
-      :: sent_or_received[peer] == SEND && remoteHtlcs[peer] > 0 ->
+      :: sent_or_received[peer] == SEND && remoteHtlcs[peer] > 1 ->
          remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = MORE;
-      :: sent_or_received[peer] == SEND && remoteHtlcs[peer] > 0 ->
+      :: sent_or_received[peer] == SEND && remoteHtlcs[peer] == 1 ->
          remoteHtlcs[peer]--; status[peer] = VALID; is_more[peer] = NO_MORE;
 
       /* Remove the local peer's HTLC if it was added by the remote, and
          there are still HTLCs left to remove. */
-      :: sent_or_received[peer] == RECV && localHtlcs[peer] > 0 ->
+      :: sent_or_received[peer] == RECV && localHtlcs[peer] > 1 ->
          localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = MORE;
-      :: sent_or_received[peer] == RECV && localHtlcs[peer] > 0 ->
+      :: sent_or_received[peer] == RECV && localHtlcs[peer] == 1 ->
          localHtlcs[peer]--; status[peer] = VALID; is_more[peer] = NO_MORE;
 
       /* If there are no more HTLCs to remove, this is an error. Mark

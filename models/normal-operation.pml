@@ -583,11 +583,13 @@ HTLC_FULFILL_WAIT:
   state[i] = HtlcFulfillWaitState;
   do
     /* HTLC deletion was successful, and no more HTLCs need to be settled. Complete run. (36) */
-    :: fulfilled[i] == true -> fulfilled[i] = false; goto ACCEPT;
+    :: fulfilled[i] == true -> goto ACCEPT;
 
-    /* Send an HTLC fulfillment. (37) */
-    :: fulfilled[i] == false ->
+    /* Send an HTLC fulfillment, if there are more HTLCs and this round of HTLCs has not been fulfilled. (37) */
+    :: fulfilled[i] == false && is_more[i] == MORE ->
        if
+         // TODO here I should only be able to send an UPDATE_FULFILL_HTLC if there are remaining outstanding HTLCs.
+         // If there are no remaining outstanding HTLCs, then this should cause an error path to be followed.
          :: snd ! UPDATE_FULFILL_HTLC -> sent_or_received[i] = SEND; goto DEL_HTLC;
          :: snd ! UPDATE_FAIL_HTLC -> sent_or_received[i] = SEND; goto DEL_HTLC;
          :: snd ! ERROR -> goto FAIL_CHANNEL;
@@ -595,8 +597,9 @@ HTLC_FULFILL_WAIT:
        fi
 
 
-    /* Received an HTLC fulfillment. Proceed to validation steps. (33) */
-    :: fulfilled[i] == false ->
+    /* Received an HTLC fulfillment, when this round of HTLCs had not yet been fulfilled, and there are still
+       pending HTLCs. Proceed to validation steps. (33) */
+    :: fulfilled[i] == false && is_more[i] == MORE ->
        if
          :: rcv ? UPDATE_FULFILL_HTLC -> goto VAL_FULFILL;
          :: rcv ? UPDATE_FAIL_HTLC -> goto VAL_FULFILL;
@@ -604,13 +607,22 @@ HTLC_FULFILL_WAIT:
          :: timeout -> goto FAIL_CHANNEL;
        fi
 
+    /* All HTLCs have been fulfilled for this round and none are left to process, but
+       the two parties still need to exchange commitments and revocations. This is to
+       reduce the complexity (i.e. size) of the logic that needs to be in the
+       redeemable transactions. (50) */
+    :: fulfilled[i] == false && is_more[i] == NO_MORE -> fulfilled[i] = true; goto MORE_HTLCS_WAIT;
+
     /* The local node might time out and thus be forced to fail the channel,
        however, the transaction is actually complete. The remaining commitment/ack
        pair is just to make the transactions smaller, for block space
        efficiency. (30) */
-    :: snd ! ERROR -> goto FAIL_CHANNEL;
-    :: rcv ? ERROR -> goto FAIL_CHANNEL;
-    :: timeout -> goto FAIL_CHANNEL;
+    :: fulfilled[i] == false ->
+       if
+         :: snd ! ERROR -> goto FAIL_CHANNEL;
+         :: rcv ? ERROR -> goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
+       fi
   od
 
 VAL_FULFILL:
@@ -632,13 +644,8 @@ DEL_HTLC:
   state[i] = DeleteHtlcState;
   DeleteHtlc(i);
   do
-    /* HTLC deletion was successful, but more HTLCs remain to be removed. (40) */
-    :: status[i] == VALID && is_more[i] == MORE -> goto HTLC_FULFILL_WAIT;
-
-    /* All HTLCs have been fulfilled, but the two parties still need to exchange
-       commitments and revocations. This is to reduce the complexity (i.e. size) of
-       the logic that needs to be in the redeemable transactions. (39) */
-    :: status[i] == VALID && is_more[i] == NO_MORE -> fulfilled[i] = true; goto MORE_HTLCS_WAIT;
+    /* HTLC deletion was successful. (40) */
+    :: status[i] == VALID -> goto HTLC_FULFILL_WAIT;
 
     /* Cannot delete HTLC, because the local peer created it. You can only delete
        HTLCs created by the counterparty. (38) */

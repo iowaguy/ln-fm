@@ -232,6 +232,7 @@ MORE_HTLCS_WAIT:
   state[i] = MoreHtlcsWaitState;
   if
     :: fulfilled[i] == false -> AddHtlc(i);
+    :: fulfilled[i] == true -> skip;
   fi
 
   do

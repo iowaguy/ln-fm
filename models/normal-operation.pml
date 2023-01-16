@@ -334,7 +334,11 @@ VAL_DESYNC_COM:
   do
     /* The concurrent commitment is well-formed. Next step is to either send or
       receive commitments that include all the HTLCs. (48) */
-    :: status[i] == VALID -> goto MORE_HTLCS_WAIT;
+    :: status[i] == VALID ->
+       if
+         :: rcv ? REVOKE_AND_ACK -> goto MORE_HTLCS_WAIT;
+         :: timeout -> goto FAIL_CHANNEL;
+       fi
 
     /* Fail the channel if the commitment is malformed. (47) */
     :: status[i] == INVALID ->
@@ -342,8 +346,8 @@ VAL_DESYNC_COM:
           :: snd ! ERROR -> goto FAIL_CHANNEL;
           :: timeout -> goto FAIL_CHANNEL;
         fi
-
     :: timeout -> goto FAIL_CHANNEL;
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
   od
 
 COMM_ACK_WAIT:

@@ -1,7 +1,7 @@
 # State Machine
 
 
-``` mermaid
+```mermaid
 stateDiagram-v2
     classDef red fill:#f00,color:white,font-weight:bold
     classDef blue fill:#00ff,color:white,font-weight:bold
@@ -34,5 +34,3 @@ stateDiagram-v2
     HTLC_FULFILLED --> FAIL_CHANNEL: (TIMEOUT && ! ERROR) || \nTIMEOUT ||\n? ERROR
     HTLC_FULFILL_WAIT --> ACCEPT: fulfilled == true
 ```
-
-`

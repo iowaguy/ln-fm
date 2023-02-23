@@ -21,7 +21,7 @@ int maxCurrentHtlcs = 2;
 
 /* The number of HTLCs opened by the local and remote peers, respectively.
    There needs to be two pools, becuase a node can only remove an HTLC
-   added by it's counterparty. This is how we track it. */
+   added by the counterparty. This is how we track it. */
 int localHtlcs[2] = {0, 0};
 int remoteHtlcs[2] = {0, 0};
 

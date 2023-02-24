@@ -32,7 +32,7 @@ int remoteHtlcs[2] = {0, 0};
 #define FulfillWaitState               4
 #define CommWait2State                 5
 #define RevokeWaitState                6
-#define RevokeWait2State                6
+#define RevokeWait2State               7
 #define EndState                       -1
 
 /* From FUNDED a peer will eventually reach ACCEPT or FAIL CHANNEL. */

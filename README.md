@@ -4,11 +4,11 @@
 stateDiagram-v2
     direction LR
 
-    classDef red fill:#f00,color:white,font-weight:bold
-    classDef blue fill:#00ff,color:white,font-weight:bold
+    <!-- classDef red fill:#f00,color:white,font-weight:bold -->
+    <!-- classDef blue fill:#00ff,color:white,font-weight:bold -->
 
-    class FAIL_CHANNEL red
-    class FUNDED blue
+    <!-- class FAIL_CHANNEL red -->
+    <!-- class FUNDED blue -->
 
     %% Pseudo transitions
     [*] --> FUNDED: (0)\n! FUNDING_LOCKED\n-----------------------------\nlocal_htlcs #colon;= 0\nremote_htlcs #colon;= 0

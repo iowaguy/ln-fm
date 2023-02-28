@@ -120,7 +120,11 @@ MORE_HTLCS_WAIT:
     // (12)
     :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto FAIL_CHANNEL;
     :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
+    :: rcv ? UPDATE_ADD_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
 
+    // (31)
+    :: rcv ? COMMITMENT_SIGNED -> goto FAIL_CHANNEL;
+    :: rcv ? COMMITMENT_SIGNED -> snd ! ERROR; goto FAIL_CHANNEL;
   fi
 
 REVOKE_WAIT:
@@ -166,6 +170,8 @@ COMM_WAIT:
     :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
     :: timeout -> goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
+    :: rcv ? REVOKE_AND_ACK -> goto FAIL_CHANNEL;
+    :: rcv ? REVOKE_AND_ACK -> snd ! ERROR; goto FAIL_CHANNEL;
   fi
 
 FULFILL_WAIT:
@@ -180,6 +186,8 @@ FULFILL_WAIT:
          :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
          :: timeout -> goto FAIL_CHANNEL;
          :: rcv ? ERROR -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
        fi
     :: local_htlcs[i] == 0 && remote_htlcs[i] == 1 ->
        if
@@ -203,6 +211,8 @@ FULFILL_WAIT:
          :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
          :: timeout -> goto FAIL_CHANNEL;
          :: rcv ? ERROR -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
        fi
   fi
 
@@ -210,12 +220,14 @@ COMM_WAIT_2:
   state[i] = CommWait2State;
   if
     // (26)
-    :: rcv ? COMMITMENT_SIGNED -> snd ! REVOKE_AND_ACK -> goto REVOKE_WAIT_2;
+    :: rcv ? COMMITMENT_SIGNED -> snd ! REVOKE_AND_ACK; goto REVOKE_WAIT_2;
 
     // (27)
     :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
     :: timeout -> goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
+    :: rcv ? COMMITMENT_SIGNED -> goto FAIL_CHANNEL;
+    :: rcv ? COMMITMENT_SIGNED -> snd ! ERROR; goto FAIL_CHANNEL;
   fi
 
 REVOKE_WAIT_2:
@@ -228,6 +240,8 @@ REVOKE_WAIT_2:
     :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
     :: timeout -> goto FAIL_CHANNEL;
     :: rcv ? ERROR -> goto FAIL_CHANNEL;
+    :: rcv ? REVOKE_AND_ACK -> goto FAIL_CHANNEL;
+    :: rcv ? REVOKE_AND_ACK -> snd ! ERROR; goto FAIL_CHANNEL;
   fi
 
 FAIL_CHANNEL:

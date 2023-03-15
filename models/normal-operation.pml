@@ -17,7 +17,7 @@ int pids[2];
 /* The number of HTLCs that can be open at a time by a single peer.
    The actual number in the protocol is 483, but we decrease it in our
    model to avoid state-space explosion. */
-int maxCurrentHtlcs = 2;
+#define MaxCurrentHtlcs 5;
 
 /* The number of HTLCs opened by the local and remote peers, respectively.
    There needs to be two pools, becuase a node can only remove an HTLC
@@ -79,13 +79,13 @@ FUNDED:
     :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
 
     // (2)
-    :: rcv ? UPDATE_ADD_HTLC -> local_htlcs[i]++; goto MORE_HTLCS_WAIT;
+    :: rcv ? UPDATE_ADD_HTLC -> localHtlcs[i]++; goto MORE_HTLCS_WAIT;
 
     // (3)
-    :: snd ! UPDATE_ADD_HTLC -> remote_htlcs[i]++; goto MORE_HTLCS_WAIT;
+    :: snd ! UPDATE_ADD_HTLC -> remoteHtlcs[i]++; goto MORE_HTLCS_WAIT;
 
     // (4)
-    :: snd ! UPDATE_ADD_HTLC; snd ! COMMITMENT_SIGNED -> remote_htlcs[i]++; goto COMM_WAIT;
+    :: snd ! UPDATE_ADD_HTLC; snd ! COMMITMENT_SIGNED -> remoteHtlcs[i]++; goto COMM_WAIT;
 
     // (28)
     :: goto end;
@@ -99,10 +99,10 @@ MORE_HTLCS_WAIT:
     :: rcv ? COMMITMENT_SIGNED -> snd ! REVOKE_AND_ACK; snd ! COMMITMENT_SIGNED; goto REVOKE_WAIT;
 
     // (6)
-    :: snd ! UPDATE_ADD_HTLC; snd ! COMMITMENT_SIGNED -> remote_htlcs[i]++; goto COMM_WAIT;
+    :: snd ! UPDATE_ADD_HTLC; snd ! COMMITMENT_SIGNED -> remoteHtlcs[i]++; goto COMM_WAIT;
 
     // (7)
-    :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_ADD_HTLC; snd ! COMMITMENT_SIGNED; remote_htlcs[i]++; local_htlcs[i]++; goto COMM_WAIT;
+    :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_ADD_HTLC; snd ! COMMITMENT_SIGNED; remoteHtlcs[i]++; localHtlcs[i]++; goto COMM_WAIT;
 
     // (8)
     :: timeout -> snd ! COMMITMENT_SIGNED; goto COMM_WAIT;
@@ -112,10 +112,10 @@ MORE_HTLCS_WAIT:
     :: rcv ? UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
 
     // (10)
-    :: snd ! UPDATE_ADD_HTLC -> remote_htlcs[i]++; goto MORE_HTLCS_WAIT;
+    :: snd ! UPDATE_ADD_HTLC -> remoteHtlcs[i]++; goto MORE_HTLCS_WAIT;
 
     // (11)
-    :: rcv ? UPDATE_ADD_HTLC -> local_htlcs[i]++; goto MORE_HTLCS_WAIT;
+    :: rcv ? UPDATE_ADD_HTLC -> localHtlcs[i]++; goto MORE_HTLCS_WAIT;
 
     // (12)
     :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto FAIL_CHANNEL;
@@ -130,7 +130,7 @@ MORE_HTLCS_WAIT:
 REVOKE_WAIT:
   state[i] = RevokeWaitState;
   if
-    :: remote_htlcs[i] == 1 && local_htlcs[i] == 0 ->
+    :: remoteHtlcs[i] == 1 && localHtlcs[i] == 0 ->
        if
          // (13)
          :: rcv ? REVOKE_AND_ACK -> snd ! UPDATE_FULFILL_HTLC; snd ! COMMITMENT_SIGNED; goto COMM_WAIT_2;
@@ -177,10 +177,10 @@ COMM_WAIT:
 FULFILL_WAIT:
   state[i] = FulfillWaitState;
   if
-    :: local_htlcs[i] == 1 && remote_htlcs[i] == 0 ->
+    :: localHtlcs[i] == 0 && remoteHtlcs[i] == 1 ->
        if
          // (24)
-         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; local_htlcs[i]--; goto COMM_WAIT_2;
+         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; localHtlcs[i]--; goto COMM_WAIT_2;
 
          // (23)
          :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
@@ -189,10 +189,10 @@ FULFILL_WAIT:
          :: rcv ? UPDATE_FULFILL_HTLC -> goto FAIL_CHANNEL;
          :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
        fi
-    :: local_htlcs[i] == 0 && remote_htlcs[i] == 1 ->
+    :: localHtlcs[i] == 1 && remoteHtlcs[i] == 0 ->
        if
          // (25)
-         :: snd ! UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; remote_htlcs[i]--; goto COMM_WAIT_2;
+         :: snd ! UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; remoteHtlcs[i]--; goto COMM_WAIT_2;
 
          // (23)
          :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
@@ -202,10 +202,10 @@ FULFILL_WAIT:
     :: else ->
        if
          // (21)
-         :: rcv ? UPDATE_FULFILL_HTLC -> local_htlcs[i]--; goto FULFILL_WAIT;
+         :: rcv ? UPDATE_FULFILL_HTLC -> localHtlcs[i]--; goto FULFILL_WAIT;
 
          // (22)
-         :: snd ! UPDATE_FULFILL_HTLC -> remote_htlcs[i]--; goto FULFILL_WAIT;
+         :: snd ! UPDATE_FULFILL_HTLC -> remoteHtlcs[i]--; goto FULFILL_WAIT;
 
          // (23)
          :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;

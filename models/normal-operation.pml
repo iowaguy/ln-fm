@@ -67,47 +67,69 @@ int remoteHtlcs[2] = {0, 0};
 /* } */
 
 inline addLocalHtlc(i) {
-  atomic {remoteHtlcs[i] + localHtlcs[i] >= MaxCurrentHtlcs -> assert(false)}
-  localHtlcs[i]++;
-  printf("Local HTLCs: %d; Remote HTLCs: %d\n", localHtlcs[i], remoteHtlcs[i]);
+  atomic {
+    rcv ? UPDATE_ADD_HTLC;
+    if
+      :: remoteHtlcs[i] + localHtlcs[i] >= MaxCurrentHtlcs -> assert(false)
+      :: else -> skip;
+    fi
+    localHtlcs[i]++;
+    printf("Peer %d: Local HTLCs: %d; Remote HTLCs: %d\n", i, localHtlcs[i], remoteHtlcs[i]);
+  }
 }
 
 inline addRemoteHtlc(i) {
-  atomic {remoteHtlcs[i] + localHtlcs[i] >= MaxCurrentHtlcs -> assert(false)}
-  remoteHtlcs[i]++;
-  printf("Local HTLCs: %d; Remote HTLCs: %d\n", localHtlcs[i], remoteHtlcs[i]);
+  atomic {
+    snd ! UPDATE_ADD_HTLC;
+    if
+      :: remoteHtlcs[i] + localHtlcs[i] >= MaxCurrentHtlcs -> assert(false)
+      :: else -> skip;
+    fi
+    remoteHtlcs[i]++;
+    printf("Peer %d: Local HTLCs: %d; Remote HTLCs: %d\n", i, localHtlcs[i], remoteHtlcs[i]);
+  }
 }
 
 inline deleteLocalHtlc(i) {
-  atomic {localHtlcs[i] == 0 -> assert(false)}
-  localHtlcs[i]--;
-  printf("Local HTLCs: %d\n", localHtlcs[i]);
+  atomic {
+    if
+      :: localHtlcs[i] == 0 -> assert(false)
+      :: else -> skip;
+    fi
+    localHtlcs[i]--;
+    printf("Peer %d: Local HTLCs: %d\n", i, localHtlcs[i]);
+  }
 }
 
 inline deleteRemoteHtlc(i) {
-  atomic {remoteHtlcs[i] == 0 -> assert(false)}
-  remoteHtlcs[i]--;
-  printf("Remote HTLCs: %d\n", remoteHtlcs[i]);
+  atomic {
+    if
+      :: remoteHtlcs[i] == 0 -> assert(false)
+      :: else -> skip;
+    fi
+    remoteHtlcs[i]--;
+    printf("Peer %d: Remote HTLCs: %d\n", i, remoteHtlcs[i]);
+  }
 }
 
 proctype LightningNormal(chan snd, rcv; bit i) {
   pids[i] = _pid;
 
-FUNDED:
+progress_FUNDED:
   state[i] = FundedState;
   if
     // (1)
-    :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto FAIL_CHANNEL;
-    :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
+    :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto end_FAIL_CHANNEL;
+    :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto end_FAIL_CHANNEL;
 
     // (2)
-    :: rcv ? UPDATE_ADD_HTLC -> addLocalHtlc(i); goto MORE_HTLCS_WAIT;
+    :: addLocalHtlc(i) -> goto MORE_HTLCS_WAIT;
 
     // (3)
-    :: snd ! UPDATE_ADD_HTLC -> addRemoteHtlc(i); goto MORE_HTLCS_WAIT;
+    :: addRemoteHtlc(i); goto MORE_HTLCS_WAIT;
 
     // (4)
-    :: snd ! UPDATE_ADD_HTLC; snd ! COMMITMENT_SIGNED -> addRemoteHtlc(i); goto COMM_WAIT;
+    :: addRemoteHtlc(i) -> snd ! COMMITMENT_SIGNED; goto COMM_WAIT;
 
     // (28)
     :: goto end;

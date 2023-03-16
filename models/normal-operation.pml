@@ -254,7 +254,7 @@ FULFILL_WAIT:
     :: localHtlcs[i] == 0 && remoteHtlcs[i] == 1 ->
        if
          // (24)
-         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; deleteLocalHtlc(i); goto COMM_WAIT_2;
+         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; deleteRemoteHtlc(i); goto COMM_WAIT_2;
 
          // (23)
          :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
@@ -266,7 +266,7 @@ FULFILL_WAIT:
     :: localHtlcs[i] == 1 && remoteHtlcs[i] == 0 ->
        if
          // (25)
-         :: snd ! UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; deleteRemoteHtlc(i); goto COMM_WAIT_2;
+         :: snd ! UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; deleteLocalHtlc(i); goto COMM_WAIT_2;
 
          // (23)
          :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
@@ -276,10 +276,10 @@ FULFILL_WAIT:
     :: else ->
        if
          // (21)
-         :: rcv ? UPDATE_FULFILL_HTLC -> deleteLocalHtlc(i); goto FULFILL_WAIT;
+         :: rcv ? UPDATE_FULFILL_HTLC -> deleteRemoteHtlc(i); goto FULFILL_WAIT;
 
          // (22)
-         :: snd ! UPDATE_FULFILL_HTLC -> deleteRemoteHtlc(i); goto FULFILL_WAIT;
+         :: snd ! UPDATE_FULFILL_HTLC -> deleteLocalHtlc(i); goto FULFILL_WAIT;
 
          // (23)
          :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;

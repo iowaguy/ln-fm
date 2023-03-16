@@ -66,7 +66,29 @@ int remoteHtlcs[2] = {0, 0};
 /*              state[0] == FailChannelState)))))) */
 /* } */
 
+inline addLocalHtlc(i) {
+  atomic {remoteHtlcs[i] + localHtlcs[i] >= MaxCurrentHtlcs -> assert(false)}
+  localHtlcs[i]++;
+  printf("Local HTLCs: %d; Remote HTLCs: %d\n", localHtlcs[i], remoteHtlcs[i]);
+}
 
+inline addRemoteHtlc(i) {
+  atomic {remoteHtlcs[i] + localHtlcs[i] >= MaxCurrentHtlcs -> assert(false)}
+  remoteHtlcs[i]++;
+  printf("Local HTLCs: %d; Remote HTLCs: %d\n", localHtlcs[i], remoteHtlcs[i]);
+}
+
+inline deleteLocalHtlc(i) {
+  atomic {localHtlcs[i] == 0 -> assert(false)}
+  localHtlcs[i]--;
+  printf("Local HTLCs: %d\n", localHtlcs[i]);
+}
+
+inline deleteRemoteHtlc(i) {
+  atomic {remoteHtlcs[i] == 0 -> assert(false)}
+  remoteHtlcs[i]--;
+  printf("Remote HTLCs: %d\n", remoteHtlcs[i]);
+}
 
 proctype LightningNormal(chan snd, rcv; bit i) {
   pids[i] = _pid;
@@ -79,13 +101,13 @@ FUNDED:
     :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
 
     // (2)
-    :: rcv ? UPDATE_ADD_HTLC -> localHtlcs[i]++; goto MORE_HTLCS_WAIT;
+    :: rcv ? UPDATE_ADD_HTLC -> addLocalHtlc(i); goto MORE_HTLCS_WAIT;
 
     // (3)
-    :: snd ! UPDATE_ADD_HTLC -> remoteHtlcs[i]++; goto MORE_HTLCS_WAIT;
+    :: snd ! UPDATE_ADD_HTLC -> addRemoteHtlc(i); goto MORE_HTLCS_WAIT;
 
     // (4)
-    :: snd ! UPDATE_ADD_HTLC; snd ! COMMITMENT_SIGNED -> remoteHtlcs[i]++; goto COMM_WAIT;
+    :: snd ! UPDATE_ADD_HTLC; snd ! COMMITMENT_SIGNED -> addRemoteHtlc(i); goto COMM_WAIT;
 
     // (28)
     :: goto end;
@@ -180,7 +202,7 @@ FULFILL_WAIT:
     :: localHtlcs[i] == 0 && remoteHtlcs[i] == 1 ->
        if
          // (24)
-         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; localHtlcs[i]--; goto COMM_WAIT_2;
+         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; deleteLocalHtlc(i); goto COMM_WAIT_2;
 
          // (23)
          :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
@@ -192,7 +214,7 @@ FULFILL_WAIT:
     :: localHtlcs[i] == 1 && remoteHtlcs[i] == 0 ->
        if
          // (25)
-         :: snd ! UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; remoteHtlcs[i]--; goto COMM_WAIT_2;
+         :: snd ! UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; deleteRemoteHtlc(i); goto COMM_WAIT_2;
 
          // (23)
          :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
@@ -202,10 +224,10 @@ FULFILL_WAIT:
     :: else ->
        if
          // (21)
-         :: rcv ? UPDATE_FULFILL_HTLC -> localHtlcs[i]--; goto FULFILL_WAIT;
+         :: rcv ? UPDATE_FULFILL_HTLC -> deleteLocalHtlc(i); goto FULFILL_WAIT;
 
          // (22)
-         :: snd ! UPDATE_FULFILL_HTLC -> remoteHtlcs[i]--; goto FULFILL_WAIT;
+         :: snd ! UPDATE_FULFILL_HTLC -> deleteRemoteHtlc(i); goto FULFILL_WAIT;
 
          // (23)
          :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;

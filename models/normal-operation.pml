@@ -273,6 +273,32 @@ FULFILL_WAIT:
          :: timeout -> goto end_FAIL_CHANNEL;
          :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
        fi
+    :: localHtlcs[i] > 1 ->
+       if
+         // (22)
+         :: snd ! UPDATE_FULFILL_HTLC -> deleteLocalHtlc(i); goto FULFILL_WAIT;
+
+         // (23)
+         :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
+         :: timeout -> goto end_FAIL_CHANNEL;
+         :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> goto end_FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto end_FAIL_CHANNEL;
+       fi
+
+    :: remoteHtlcs[i] > 1 ->
+       if
+         // (21)
+         :: rcv ? UPDATE_FULFILL_HTLC -> deleteRemoteHtlc(i); goto FULFILL_WAIT;
+
+         // (23)
+         :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
+         :: timeout -> goto end_FAIL_CHANNEL;
+         :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> goto end_FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto end_FAIL_CHANNEL;
+       fi
+
     :: else ->
        if
          // (21)

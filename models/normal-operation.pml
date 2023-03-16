@@ -74,7 +74,7 @@ inline addLocalHtlc(i) {
       :: else -> skip;
     fi
     localHtlcs[i]++;
-    printf("Peer %d: Local HTLCs: %d; Remote HTLCs: %d\n", i, localHtlcs[i], remoteHtlcs[i]);
+    printf("Peer %d: Local HTLCs: %d; Remote HTLCs: %d\n", i + 1, localHtlcs[i], remoteHtlcs[i]);
   }
 }
 
@@ -86,7 +86,7 @@ inline addRemoteHtlc(i) {
       :: else -> skip;
     fi
     remoteHtlcs[i]++;
-    printf("Peer %d: Local HTLCs: %d; Remote HTLCs: %d\n", i, localHtlcs[i], remoteHtlcs[i]);
+    printf("Peer %d: Local HTLCs: %d; Remote HTLCs: %d\n", i + 1, localHtlcs[i], remoteHtlcs[i]);
   }
 }
 
@@ -97,7 +97,7 @@ inline deleteLocalHtlc(i) {
       :: else -> skip;
     fi
     localHtlcs[i]--;
-    printf("Peer %d: Local HTLCs: %d\n", i, localHtlcs[i]);
+    printf("Peer %d: Local HTLCs: %d\n", i + 1, localHtlcs[i]);
   }
 }
 
@@ -108,7 +108,7 @@ inline deleteRemoteHtlc(i) {
       :: else -> skip;
     fi
     remoteHtlcs[i]--;
-    printf("Peer %d: Remote HTLCs: %d\n", i, remoteHtlcs[i]);
+    printf("Peer %d: Remote HTLCs: %d\n", i + 1, remoteHtlcs[i]);
   }
 }
 

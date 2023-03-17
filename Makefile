@@ -2,10 +2,15 @@
 modeldir := models
 .PHONY: clean verifynormal
 
-verifynormal: | $(modeldir)
-	rm -f normal-operation.pml.trail
-	spin -a -run -DNP -l $(modeldir)/normal-operation.pml
-	rm -f pan
+verifynormal: clean | $(modeldir)
+	spin -a $(modeldir)/normal-operation.pml
+	cc -o pan pan.c
+	./pan
+
+verifynonprogress: clean
+	spin -a $(modeldir)/normal-operation.pml
+	cc -DNP -o pan pan.c
+	./pan -l
 
 replayshort:
 	spin -c -k normal-operation.pml.trail $(modeldir)/normal-operation.pml
@@ -25,3 +30,7 @@ shorten100:
 	spin -a $(modeldir)/normal-operation.pml
 	cc -DREACH -o pan pan.c
 	./pan -i -m100
+
+clean:
+	rm -f pan pan.*
+	rm -f normal-operation.pml.trail

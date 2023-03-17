@@ -122,7 +122,7 @@ inline deleteRemoteHtlc(i) {
 proctype LightningNormal(chan snd, rcv; bit i) {
   pids[i] = _pid;
 
-progress_FUNDED:
+end_FUNDED:
   state[i] = FundedState;
   if
     // (1)
@@ -342,7 +342,7 @@ REVOKE_WAIT_2:
   state[i] = RevokeWait2State;
   if
     // (29)
-    :: rcv ? REVOKE_AND_ACK -> goto progress_FUNDED;
+    :: rcv ? REVOKE_AND_ACK -> goto end_FUNDED;
 
     // (30)
     :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;

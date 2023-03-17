@@ -4,7 +4,7 @@ modeldir := models
 
 verifynormal: | $(modeldir)
 	rm -f normal-operation.pml.trail
-	spin -run -a -DNOREDUCE $(modeldir)/normal-operation.pml
+	spin -a -run -DNP -l $(modeldir)/normal-operation.pml
 	rm -f pan
 
 replayshort:

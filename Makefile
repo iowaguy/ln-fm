@@ -15,3 +15,13 @@ replayverbose:
 
 interactive:
 	spin -i $(modeldir)/normal-operation.pml
+
+shorten50:
+	spin -a $(modeldir)/normal-operation.pml
+	cc -DREACH -o pan pan.c
+	./pan -i -m50
+
+shorten100:
+	spin -a $(modeldir)/normal-operation.pml
+	cc -DREACH -o pan pan.c
+	./pan -i -m100

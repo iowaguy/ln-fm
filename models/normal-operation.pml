@@ -35,44 +35,6 @@ int remoteHtlcs[2] = {0, 0};
 #define RevokeWait2State               7
 #define EndState                       -1
 
-// A payment should either eventually end up back in Funded, or fail.
-ltl CompleteOrFail {
-  eventually (always (state[0] == FundedState ||
-                      state[0] == FailChannelState
-  ))
-}
-
-/* From FUNDED a peer will eventually reach ACCEPT or FAIL CHANNEL. */
-/* ltl liveness1 { */
-/*     always ( */
-/*         (state[0] == FundedState) */
-/*         implies ( */
-/*             eventually( */
-/*                     (state[0] == AcceptState || */
-/*                      state[0] == FailChannelState) */
-/*             ) */
-/*         ) */
-/*     ) */
-/* } */
-
-/* /\* If a peer validates the commitment signed message, the other peer */
-/*    should eventually receive a REVOKE_AND_ACK or end in FAIL_CHANNEL. *\/ */
-/* ltl liveness2 { */
-/*     always ( */
-/*       ((state[0] == MoreHtlcsWaitState || state[0] == ValHtlcState) implies */
-/*        (eventually */
-/*         (((state[0] == ValDesyncComState) implies (next (state[0] == MoreHtlcsWaitState))) || */
-/*          ((state[0] == ValPrimaryCommitmentState) implies (next (state[0] == AckWaitState))) || */
-/*          ((state[0] == ValConcCommitmentState) implies (next (state[0] == ValConcAckState))) || */
-/*          ((state[0] == ValCommitmentState) implies (next (state[0] == HtlcFulfillWaitState)))) */
-/*         implies ( */
-/*           eventually ( */
-/*             (state[0] == ValSeqAck1State || */
-/*              state[0] == ValSeqAck2State || */
-/*              state[0] == ValConcAckState || */
-/*              state[0] == FailChannelState)))))) */
-/* } */
-
 inline addLocalHtlc(i) {
   d_step {
     rcv ? UPDATE_ADD_HTLC;

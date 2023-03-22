@@ -84,12 +84,14 @@ inline deleteRemoteHtlc(i) {
 proctype LightningNormal(chan snd, rcv; bit i) {
   pids[i] = _pid;
 
+FUNDED:
 end_FUNDED:
+progress_FUNDED:
   state[i] = FundedState;
   if
     // (1)
-    :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto end_FAIL_CHANNEL;
-    :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto end_FAIL_CHANNEL;
+    :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto FAIL_CHANNEL;
+    :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
 
     // (2)
     :: addLocalHtlc(i) -> goto MORE_HTLCS_WAIT;
@@ -100,8 +102,8 @@ end_FUNDED:
     // (4)
     :: addRemoteHtlc(i) -> snd ! COMMITMENT_SIGNED; goto COMM_WAIT;
 
-    // (28)
-    :: goto end;
+    /* // (28) */
+    /* :: goto end; */
 
   fi
 
@@ -125,8 +127,8 @@ MORE_HTLCS_WAIT:
          :: timeout -> snd ! COMMITMENT_SIGNED; goto COMM_WAIT;
 
          // (9)
-         :: rcv ? UPDATE_FAIL_HTLC; goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_FAIL_MALFORMED_HTLC; goto end_FAIL_CHANNEL;
+         :: rcv ? UPDATE_FAIL_HTLC; goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
 
          // (10)
          :: addRemoteHtlc(i) -> goto MORE_HTLCS_WAIT;
@@ -135,13 +137,13 @@ MORE_HTLCS_WAIT:
          :: addLocalHtlc(i) -> goto MORE_HTLCS_WAIT;
 
          // (12)
-         :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_ADD_HTLC -> snd ! ERROR; goto end_FAIL_CHANNEL;
+         :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_ADD_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
 
          // (31)
-         :: rcv ? COMMITMENT_SIGNED -> goto end_FAIL_CHANNEL;
-         :: rcv ? COMMITMENT_SIGNED -> snd ! ERROR; goto end_FAIL_CHANNEL;
+         :: rcv ? COMMITMENT_SIGNED -> goto FAIL_CHANNEL;
+         :: rcv ? COMMITMENT_SIGNED -> snd ! ERROR; goto FAIL_CHANNEL;
        fi
     :: remoteHtlcs[i] + localHtlcs[i] == MaxCurrentHtlcs - 1 ->
        // If local node recieves the last HTLC that puts it at MaxCurrentHtlcs,
@@ -157,17 +159,17 @@ MORE_HTLCS_WAIT:
          :: timeout -> snd ! COMMITMENT_SIGNED; goto COMM_WAIT;
 
          // (9)
-         :: rcv ? UPDATE_FAIL_HTLC; goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_FAIL_MALFORMED_HTLC; goto end_FAIL_CHANNEL;
+         :: rcv ? UPDATE_FAIL_HTLC; goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
 
          // (12)
-         :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_ADD_HTLC -> snd ! ERROR; goto end_FAIL_CHANNEL;
+         :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_ADD_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
 
          // (31)
-         :: rcv ? COMMITMENT_SIGNED -> goto end_FAIL_CHANNEL;
-         :: rcv ? COMMITMENT_SIGNED -> snd ! ERROR; goto end_FAIL_CHANNEL;
+         :: rcv ? COMMITMENT_SIGNED -> goto FAIL_CHANNEL;
+         :: rcv ? COMMITMENT_SIGNED -> snd ! ERROR; goto FAIL_CHANNEL;
        fi
   fi
 
@@ -180,9 +182,9 @@ REVOKE_WAIT:
          :: rcv ? REVOKE_AND_ACK -> snd ! UPDATE_FULFILL_HTLC; snd ! COMMITMENT_SIGNED; goto COMM_WAIT_2;
 
          // (15)
-         :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
-         :: timeout -> goto end_FAIL_CHANNEL;
-         :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
+         :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
+         :: rcv ? ERROR -> goto FAIL_CHANNEL;
        fi
     :: else ->
        if
@@ -190,9 +192,9 @@ REVOKE_WAIT:
          :: rcv ? REVOKE_AND_ACK -> goto FULFILL_WAIT;
 
          // (15)
-         :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
-         :: timeout -> goto end_FAIL_CHANNEL;
-         :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
+         :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
+         :: rcv ? ERROR -> goto FAIL_CHANNEL;
        fi
   fi
 COMM_WAIT:
@@ -211,11 +213,11 @@ COMM_WAIT:
     :: rcv ? COMMITMENT_SIGNED -> snd ! REVOKE_AND_ACK; goto FULFILL_WAIT;
 
     // (20)
-    :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
-    :: timeout -> goto end_FAIL_CHANNEL;
-    :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
-    :: rcv ? REVOKE_AND_ACK -> goto end_FAIL_CHANNEL;
-    :: rcv ? REVOKE_AND_ACK -> snd ! ERROR; goto end_FAIL_CHANNEL;
+    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: timeout -> goto FAIL_CHANNEL;
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+    :: rcv ? REVOKE_AND_ACK -> goto FAIL_CHANNEL;
+    :: rcv ? REVOKE_AND_ACK -> snd ! ERROR; goto FAIL_CHANNEL;
   fi
 
 FULFILL_WAIT:
@@ -227,11 +229,11 @@ FULFILL_WAIT:
          :: rcv ? UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; deleteRemoteHtlc(i); goto COMM_WAIT_2;
 
          // (23)
-         :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
-         :: timeout -> goto end_FAIL_CHANNEL;
-         :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto end_FAIL_CHANNEL;
+         :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
+         :: rcv ? ERROR -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
        fi
     :: localHtlcs[i] == 1 && remoteHtlcs[i] == 0 ->
        if
@@ -239,9 +241,9 @@ FULFILL_WAIT:
          :: snd ! UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; deleteLocalHtlc(i); goto COMM_WAIT_2;
 
          // (23)
-         :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
-         :: timeout -> goto end_FAIL_CHANNEL;
-         :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
+         :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
+         :: rcv ? ERROR -> goto FAIL_CHANNEL;
        fi
     :: localHtlcs[i] > 1 ->
        if
@@ -249,11 +251,11 @@ FULFILL_WAIT:
          :: snd ! UPDATE_FULFILL_HTLC -> deleteLocalHtlc(i); goto FULFILL_WAIT;
 
          // (23)
-         :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
-         :: timeout -> goto end_FAIL_CHANNEL;
-         :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto end_FAIL_CHANNEL;
+         :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
+         :: rcv ? ERROR -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
        fi
 
     :: remoteHtlcs[i] > 1 ->
@@ -262,11 +264,11 @@ FULFILL_WAIT:
          :: rcv ? UPDATE_FULFILL_HTLC -> deleteRemoteHtlc(i); goto FULFILL_WAIT;
 
          // (23)
-         :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
-         :: timeout -> goto end_FAIL_CHANNEL;
-         :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto end_FAIL_CHANNEL;
+         :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
+         :: rcv ? ERROR -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
        fi
 
     :: else ->
@@ -278,11 +280,11 @@ FULFILL_WAIT:
          :: snd ! UPDATE_FULFILL_HTLC -> deleteLocalHtlc(i); goto FULFILL_WAIT;
 
          // (23)
-         :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
-         :: timeout -> goto end_FAIL_CHANNEL;
-         :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> goto end_FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto end_FAIL_CHANNEL;
+         :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+         :: timeout -> goto FAIL_CHANNEL;
+         :: rcv ? ERROR -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> goto FAIL_CHANNEL;
+         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
        fi
   fi
 
@@ -293,33 +295,30 @@ COMM_WAIT_2:
     :: rcv ? COMMITMENT_SIGNED -> snd ! REVOKE_AND_ACK; goto REVOKE_WAIT_2;
 
     // (27)
-    :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
-    :: timeout -> goto end_FAIL_CHANNEL;
-    :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
-    :: rcv ? COMMITMENT_SIGNED -> goto end_FAIL_CHANNEL;
-    :: rcv ? COMMITMENT_SIGNED -> snd ! ERROR; goto end_FAIL_CHANNEL;
+    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: timeout -> goto FAIL_CHANNEL;
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+    :: rcv ? COMMITMENT_SIGNED -> goto FAIL_CHANNEL;
+    :: rcv ? COMMITMENT_SIGNED -> snd ! ERROR; goto FAIL_CHANNEL;
   fi
 
 REVOKE_WAIT_2:
   state[i] = RevokeWait2State;
   if
     // (29)
-    :: rcv ? REVOKE_AND_ACK -> goto end_FUNDED;
+    :: rcv ? REVOKE_AND_ACK -> goto FUNDED;
 
     // (30)
-    :: timeout -> snd ! ERROR; goto end_FAIL_CHANNEL;
-    :: timeout -> goto end_FAIL_CHANNEL;
-    :: rcv ? ERROR -> goto end_FAIL_CHANNEL;
-    :: rcv ? REVOKE_AND_ACK -> goto end_FAIL_CHANNEL;
-    :: rcv ? REVOKE_AND_ACK -> snd ! ERROR; goto end_FAIL_CHANNEL;
+    :: timeout -> snd ! ERROR; goto FAIL_CHANNEL;
+    :: timeout -> goto FAIL_CHANNEL;
+    :: rcv ? ERROR -> goto FAIL_CHANNEL;
+    :: rcv ? REVOKE_AND_ACK -> goto FAIL_CHANNEL;
+    :: rcv ? REVOKE_AND_ACK -> snd ! ERROR; goto FAIL_CHANNEL;
   fi
 
+FAIL_CHANNEL:
 end_FAIL_CHANNEL:
   state[i] = FailChannelState;
-  goto end;
-
-end:
-  state[i] = EndState;
 }
 
 

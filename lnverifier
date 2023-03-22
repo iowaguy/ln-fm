@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+
+MODELDIR=models
+PROPDIR=properties
+POSITIONAL_ARGS=()
+DNP=false
+PROPERTY=
+
+clean() {
+  make clean
+}
+
+setup_property() {
+  rm -f model.tmp.pml
+  cat $MODELDIR/normal-operation.pml $PROPDIR/prop${1}.pml > model.tmp.pml
+}
+
+verify_property() {
+  spin -a model.tmp.pml
+  cc -o pan pan.c
+  ./pan
+}
+
+# Verify with detection for non-progress cycles
+verify_property_dnp() {
+  spin -a model.tmp.pml
+  cc -DNP -o pan pan.c
+  ./pan -l
+}
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -dnp|--detectnonprogress)
+      DNP=true
+      shift # past argument
+      ;;
+    -p|--property)
+      PROPERTY="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --default)
+      DEFAULT=YES
+      shift # past argument
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+if [[ "x$PROPERTY" == "x" ]]; then
+    echo "Must provide a property with the -p flag."
+    exit 1
+fi
+
+clean
+setup_property $PROPERTY
+
+if [[ $DNP == true ]]; then
+  verify_property_dnp
+else
+  verify_property
+fi

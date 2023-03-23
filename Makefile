@@ -21,16 +21,15 @@ replayverbose:
 interactive:
 	spin -i $(modeldir)/normal-operation.pml
 
-shorten50:
+shortenviolation50:
 	spin -a $(modeldir)/normal-operation.pml
 	cc -DREACH -o pan pan.c
 	./pan -i -m50
 
-shorten100:
+shortenviolation100:
 	spin -a $(modeldir)/normal-operation.pml
 	cc -DREACH -o pan pan.c
 	./pan -i -m100
 
 clean:
-	rm -f pan pan.*
-	rm -f normal-operation.pml.trail
+	rm -f pan pan.* *.trail _spin_nvr.tmp model.tmp.pml

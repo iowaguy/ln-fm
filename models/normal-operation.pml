@@ -87,6 +87,7 @@ proctype LightningNormal(chan snd, rcv; bit i) {
 FUNDED:
 end_FUNDED:
 progress_FUNDED:
+accept_FUNDED:
   state[i] = FundedState;
   if
     // (1)

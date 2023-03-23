@@ -102,15 +102,10 @@ accept_FUNDED:
 
     // (4)
     :: addRemoteHtlc(i) -> snd ! COMMITMENT_SIGNED; goto COMM_WAIT;
-
-    /* // (28) */
-    /* :: goto end; */
-
   fi
 
 MORE_HTLCS_WAIT:
   state[i] = MoreHtlcsWaitState;
-
   if
     :: remoteHtlcs[i] + localHtlcs[i] < MaxCurrentHtlcs - 1 ->
        // Can accept more than one more HTLC

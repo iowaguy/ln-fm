@@ -6,6 +6,7 @@ PROPDIR=properties
 POSITIONAL_ARGS=()
 DNP=false
 PROPERTY=
+MAXLENGTH=
 MODEL=model.tmp.pml
 MODEL_TRAIL=${MODEL}.trail
 
@@ -50,6 +51,12 @@ replay_verbose() {
   spin -t0 -w -s -r -c -k $MODEL_TRAIL -p $MODEL
 }
 
+shorten_violation() {
+  spin -a $MODEL
+  cc -DREACH -o pan pan.c
+  ./pan -i -m$1
+}
+
 while [[ $# -gt 0 ]]; do
   case $1 in
     -dnp|--detectnonprogress)
@@ -58,6 +65,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     -p|--property)
       PROPERTY="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -s|--shortenviolation)
+      MAXLENGTH="$2"
       shift # past argument
       shift # past value
       ;;
@@ -91,6 +103,8 @@ if [[ "x$PROPERTY" != "x" ]]; then
   else
     verify_property
   fi
+elif [[ "x$MAXLENGTH" != "x" ]]; then
+  shorten_violation $MAXLENGTH
 else
   clean
   setup_no_properties

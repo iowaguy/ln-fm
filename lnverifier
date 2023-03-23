@@ -91,6 +91,7 @@ if [[ "x$PROPERTY" != "x" ]]; then
     verify_property
   fi
 else
+  clean
   setup_no_properties
   verify_no_properties
 fi

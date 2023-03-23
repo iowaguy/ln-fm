@@ -45,6 +45,10 @@ replay_short() {
   spin -c -k $MODEL_TRAIL $MODEL
 }
 
+replay_verbose() {
+  spin -t0 -w -s -r -c -k $MODEL_TRAIL -p $MODEL
+}
+
 while [[ $# -gt 0 ]]; do
   case $1 in
     -dnp|--detectnonprogress)
@@ -58,6 +62,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     -rs|--replayshort)
       replay_short
+      exit 0
+      ;;
+    -rv|--replayverbose)
+      replay_verbose
       exit 0
       ;;
     -*|--*)

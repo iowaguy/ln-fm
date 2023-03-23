@@ -5,27 +5,44 @@ PROPDIR=properties
 POSITIONAL_ARGS=()
 DNP=false
 PROPERTY=
+MODEL=model.tmp.pml
+MODEL_TRAIL=${MODEL}.trail
 
 clean() {
   make clean
 }
 
 setup_property() {
-  rm -f model.tmp.pml
-  cat $MODELDIR/normal-operation.pml $PROPDIR/prop${1}.pml > model.tmp.pml
+  rm -f $MODEL
+  cat $MODELDIR/normal-operation.pml $PROPDIR/prop${1}.pml > $MODEL
+}
+
+setup_no_properties() {
+  rm -f $MODEL
+  cp $MODELDIR/normal-operation.pml $MODEL
 }
 
 verify_property() {
-  spin -a model.tmp.pml
+  spin -a $MODEL
+  cc -o pan pan.c
+  ./pan
+}
+
+verify_no_properties() {
+  spin -a $MODEL
   cc -o pan pan.c
   ./pan
 }
 
 # Verify with detection for non-progress cycles
 verify_property_dnp() {
-  spin -a model.tmp.pml
+  spin -a $MODEL
   cc -DNP -o pan pan.c
   ./pan -l
+}
+
+replay_short() {
+  spin -c -k $MODEL_TRAIL $MODEL
 }
 
 while [[ $# -gt 0 ]]; do
@@ -39,9 +56,9 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
-    --default)
-      DEFAULT=YES
-      shift # past argument
+    -rs|--replayshort)
+      replay_short
+      exit 0
       ;;
     -*|--*)
       echo "Unknown option $1"
@@ -56,16 +73,16 @@ done
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-if [[ "x$PROPERTY" == "x" ]]; then
-    echo "Must provide a property with the -p flag."
-    exit 1
-fi
+if [[ "x$PROPERTY" != "x" ]]; then
+  clean
+  setup_property $PROPERTY
 
-clean
-setup_property $PROPERTY
-
-if [[ $DNP == true ]]; then
-  verify_property_dnp
+  if [[ $DNP == true ]]; then
+    verify_property_dnp
+  else
+    verify_property
+  fi
 else
-  verify_property
+  setup_no_properties
+  verify_no_properties
 fi

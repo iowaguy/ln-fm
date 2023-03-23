@@ -207,29 +207,20 @@ COMM_WAIT:
 FULFILL_WAIT:
   state[i] = FulfillWaitState;
   if
-    :: localHtlcs[i] == 0 && remoteHtlcs[i] == 1 ->
+    :: localHtlcs[i] == 0 && remoteHtlcs[i] == 0 ->
        if
-         // (24)
-         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! COMMITMENT_SIGNED; deleteRemoteHtlc(i); goto COMM_WAIT_2;
+         // (x)
+         :: rcv ? COMMITMENT_SIGNED -> snd ! REVOKE_AND_ACK; snd ! COMMITMENT_SIGNED; goto REVOKE_WAIT_2;
 
-         // (23)
-         :: snd ! ERROR; goto FAIL_CHANNEL;
-         :: goto FAIL_CHANNEL;
-         :: rcv ? ERROR -> goto FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> goto FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
-       fi
-    :: localHtlcs[i] == 1 && remoteHtlcs[i] == 0 ->
-       if
          // (25)
-         :: snd ! COMMITMENT_SIGNED -> deleteLocalHtlc(i); goto COMM_WAIT_2;
+         :: snd ! COMMITMENT_SIGNED -> goto COMM_WAIT_2;
 
          // (23)
          :: snd ! ERROR; goto FAIL_CHANNEL;
          :: goto FAIL_CHANNEL;
          :: rcv ? ERROR -> goto FAIL_CHANNEL;
        fi
-    :: localHtlcs[i] > 1 ->
+    :: localHtlcs[i] > 0 ->
        if
          // (22)
          :: snd ! UPDATE_FULFILL_HTLC -> deleteLocalHtlc(i); goto FULFILL_WAIT;
@@ -242,26 +233,10 @@ FULFILL_WAIT:
          :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
        fi
 
-    :: remoteHtlcs[i] > 1 ->
+    :: remoteHtlcs[i] > 0 ->
        if
          // (21)
          :: rcv ? UPDATE_FULFILL_HTLC -> deleteRemoteHtlc(i); goto FULFILL_WAIT;
-
-         // (23)
-         :: snd ! ERROR; goto FAIL_CHANNEL;
-         :: goto FAIL_CHANNEL;
-         :: rcv ? ERROR -> goto FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> goto FAIL_CHANNEL;
-         :: rcv ? UPDATE_FULFILL_HTLC -> snd ! ERROR; goto FAIL_CHANNEL;
-       fi
-
-    :: else ->
-       if
-         // (21)
-         :: rcv ? UPDATE_FULFILL_HTLC -> deleteRemoteHtlc(i); goto FULFILL_WAIT;
-
-         // (22)
-         :: snd ! UPDATE_FULFILL_HTLC -> deleteLocalHtlc(i); goto FULFILL_WAIT;
 
          // (23)
          :: snd ! ERROR; goto FAIL_CHANNEL;
@@ -303,6 +278,7 @@ REVOKE_WAIT_2:
 FAIL_CHANNEL:
 end_FAIL_CHANNEL:
   state[i] = FailChannelState;
+  // Clear the receive channel, so that the other peer can make progress
   if
     :: rcv ? _ -> goto FAIL_CHANNEL;
     :: timeout -> skip

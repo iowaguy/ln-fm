@@ -32,17 +32,10 @@ start:
   od
 recv_atob_comm:
   do
-    :: BtoA ! UPDATE_FULFILL_HTLC -> goto anything;
+    :: BtoA ! UPDATE_FULFILL_HTLC -> break;
   od
 recv_btoa_comm:
   do
-    :: AtoB ! UPDATE_FULFILL_HTLC -> goto anything;
-  od
-anything:
-  do
-    :: AtoB ! _
-    :: AtoB ? _
-    :: BtoA ! _
-    :: BtoA ? _
+    :: AtoB ! UPDATE_FULFILL_HTLC -> break;
   od
 }

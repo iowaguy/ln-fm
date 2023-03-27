@@ -44,5 +44,4 @@ recv_btoa_comm:
     :: BtoA ! _ -> goto recv_btoa_comm;
     :: BtoA ? _ -> goto recv_btoa_comm;
   od
-end:
 }

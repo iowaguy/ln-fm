@@ -89,16 +89,19 @@ end_FUNDED:
 progress_FUNDED:
 accept_FUNDED:
   state[i] = FundedState;
+
+  // This assertion is Property 3
+  assert(localHtlcs[i] == 0 && remoteHtlcs[i] == 0)
   if
     // (1)
     :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto FAIL_CHANNEL;
     :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
 
-    // (2) NOTE: added state update for property 3, so that the transition is fully atomic
-    :: atomic {addLocalHtlc(i) -> state[i] = MoreHtlcsWaitState; goto MORE_HTLCS_WAIT;}
+    // (2)
+    :: addLocalHtlc(i) -> state[i] = MoreHtlcsWaitState; goto MORE_HTLCS_WAIT;
 
-    // (3) NOTE: added state update for property 3, so that the transition is fully atomic
-    :: atomic {addRemoteHtlc(i) -> state[i] = MoreHtlcsWaitState; goto MORE_HTLCS_WAIT;}
+    // (3)
+    :: addRemoteHtlc(i) -> state[i] = MoreHtlcsWaitState; goto MORE_HTLCS_WAIT;
   fi
 
 MORE_HTLCS_WAIT:

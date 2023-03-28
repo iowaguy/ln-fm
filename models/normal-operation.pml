@@ -94,11 +94,11 @@ accept_FUNDED:
     :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_HTLC; goto FAIL_CHANNEL;
     :: rcv ? UPDATE_ADD_HTLC -> snd ! UPDATE_FAIL_MALFORMED_HTLC; goto FAIL_CHANNEL;
 
-    // (2)
-    :: addLocalHtlc(i) -> goto MORE_HTLCS_WAIT;
+    // (2) NOTE: added state update for property 3, so that the transition is fully atomic
+    :: atomic {addLocalHtlc(i) -> state[i] = MoreHtlcsWaitState; goto MORE_HTLCS_WAIT;}
 
-    // (3)
-    :: addRemoteHtlc(i); goto MORE_HTLCS_WAIT;
+    // (3) NOTE: added state update for property 3, so that the transition is fully atomic
+    :: atomic {addRemoteHtlc(i) -> state[i] = MoreHtlcsWaitState; goto MORE_HTLCS_WAIT;}
   fi
 
 MORE_HTLCS_WAIT:

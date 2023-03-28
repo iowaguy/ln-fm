@@ -107,7 +107,7 @@ accept_FUNDED:
 MORE_HTLCS_WAIT:
   state[i] = MoreHtlcsWaitState;
   if
-    :: remoteHtlcs[i] + localHtlcs[i] < MaxCurrentHtlcs - 1 ->
+    :: remoteHtlcs[i] + localHtlcs[i] < MaxCurrentHtlcs ->
        // Can accept more than one more HTLC
        if
          // (5)
@@ -135,7 +135,7 @@ MORE_HTLCS_WAIT:
          :: rcv ? COMMITMENT_SIGNED -> goto FAIL_CHANNEL;
          :: rcv ? COMMITMENT_SIGNED -> snd ! ERROR; goto FAIL_CHANNEL;
        fi
-    :: remoteHtlcs[i] + localHtlcs[i] == MaxCurrentHtlcs - 1 ->
+    :: remoteHtlcs[i] + localHtlcs[i] == MaxCurrentHtlcs ->
        // If local node recieves the last HTLC that puts it at MaxCurrentHtlcs,
        // it must start sending commitments
        if

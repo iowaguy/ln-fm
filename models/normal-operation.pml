@@ -17,7 +17,7 @@ int pids[2];
 /* The number of HTLCs that can be open at a time by a single peer.
    The actual number in the protocol is 483, but we decrease it in our
    model to avoid state-space explosion. */
-int MaxCurrentHtlcs = 5;
+int MaxCurrentHtlcs = 10;
 
 /* The number of HTLCs opened by the local and remote peers, respectively.
    There needs to be two pools, becuase a node can only remove an HTLC

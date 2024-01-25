@@ -1,4 +1,5 @@
-# State Machine
+# Payout Race README
+Also note that a full implementation of `lnd` is included.
 
 ## Running Model Checker
 Run `./lnverifier` to test the model with SPIN. It should report all states as reached, and not report any deadlocks or livelocks.

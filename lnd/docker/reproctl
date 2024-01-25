@@ -28,21 +28,8 @@ class LndPeer:
 def myrun(cmd: str, env: Dict={}) -> None:
     with open(LOG_FILE, "a") as f:
         f.write(cmd + "\n")
-
-        # if background:
-        #     with subprocess.Popen("nohup " + cmd + f" > {LOG_FILE} &", env=os.environ|env, stdout=f, stderr=subprocess.STDOUT, shell=True, text=True) as proc:
-        #         pass
-        # else:
         with subprocess.Popen(cmd, env=os.environ|env, stdout=f, stderr=subprocess.STDOUT, shell=True, text=True) as proc:
             proc.wait()
-            # f.write(str(proc.stdout.read()))
-        #     r = subprocess.run(
-        #         cmd, shell=True, stdout=f, stderr=subprocess.STDOUT, text=True
-        #     )
-        # else:
-        #     r = subprocess.run(
-        #         cmd + " &", shell=True, stdout=f, stderr=subprocess.STDOUT, text=True
-        #     )
 
 
 def myrun_output_raw(cmd: str) -> str:

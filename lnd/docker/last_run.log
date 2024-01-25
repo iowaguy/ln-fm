@@ -1,0 +1,474 @@
+
+echo > last_run.log
+Clearing old volumes, containers, and files...docker-compose stop
+Error response from daemon: No such container: alice
+Error response from daemon: No such container: bob
+Error response from daemon: No such container: btcd
+docker stop alice bob btcd
+Error response from daemon: No such container: alice
+Error response from daemon: No such container: bob
+Error response from daemon: No such container: btcd
+docker rm alice bob btcd
+simnet_lnd_alice
+simnet_lnd_bob
+Error response from daemon: get docker_bitcoin: no such volume
+Error response from daemon: get docker_lnd: no such volume
+Error response from daemon: get docker_shared: no such volume
+docker volume rm simnet_lnd_alice simnet_lnd_bob docker_bitcoin docker_lnd docker_shared
+done.
+Creating volumes...simnet_lnd_alice
+docker volume create simnet_lnd_alice
+simnet_lnd_bob
+docker volume create simnet_lnd_bob
+done.
+Staring container alice... btcd Pulling 
+ btcd Warning 
+#0 building with "default" instance using docker driver
+
+#1 [btcd internal] load .dockerignore
+#1 transferring context: 2B done
+#1 DONE 0.0s
+
+#2 [btcd internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.92kB done
+#2 DONE 0.0s
+
+#3 [btcd internal] load metadata for docker.io/library/alpine:latest
+#3 DONE 1.5s
+
+#4 [btcd internal] load metadata for docker.io/library/golang:1.19.2-alpine
+#4 DONE 1.5s
+
+#5 [btcd builder 1/4] FROM docker.io/library/golang:1.19.2-alpine@sha256:e4dcdac3ed37d8c2b3b8bcef2909573b2ad9c2ab53ba53c608909e8b89ccee36
+#5 CACHED
+
+#6 [btcd final 1/9] FROM docker.io/library/alpine@sha256:51b67269f354137895d43f3b3d810bfacd3945438e94dc5ac55fdac340352f48
+#6 CACHED
+
+#7 [btcd builder 2/4] RUN apk add --no-cache git gcc musl-dev
+#7 ERROR: unlazy requires an applier
+
+#8 [btcd internal] load build context
+#8 CANCELED
+------
+ > [btcd builder 2/4] RUN apk add --no-cache git gcc musl-dev:
+------
+failed to solve: failed to compute cache key: unlazy requires an applier
+docker-compose run -d --name alice --volume simnet_lnd_alice:/root/.lnd lnd
+done.
+Staring container bob... btcd Pulling 
+ btcd Warning 
+#0 building with "default" instance using docker driver
+
+#1 [btcd internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.92kB done
+#1 DONE 0.0s
+
+#2 [btcd internal] load .dockerignore
+#2 transferring context: 2B done
+#2 DONE 0.0s
+
+#3 [btcd internal] load metadata for docker.io/library/alpine:latest
+#3 ...
+
+#4 [btcd internal] load metadata for docker.io/library/golang:1.19.2-alpine
+#4 DONE 2.2s
+
+#3 [btcd internal] load metadata for docker.io/library/alpine:latest
+#3 DONE 2.2s
+
+#5 [btcd internal] load build context
+#5 DONE 0.0s
+
+#6 [btcd builder 1/4] FROM docker.io/library/golang:1.19.2-alpine@sha256:e4dcdac3ed37d8c2b3b8bcef2909573b2ad9c2ab53ba53c608909e8b89ccee36
+#6 CACHED
+
+#7 [btcd final 1/9] FROM docker.io/library/alpine@sha256:51b67269f354137895d43f3b3d810bfacd3945438e94dc5ac55fdac340352f48
+#7 CACHED
+
+#8 [btcd builder 2/4] RUN apk add --no-cache git gcc musl-dev
+#8 ERROR: unlazy requires an applier
+------
+ > [btcd builder 2/4] RUN apk add --no-cache git gcc musl-dev:
+------
+failed to solve: failed to compute cache key: unlazy requires an applier
+docker-compose run -d --name bob --volume simnet_lnd_bob:/root/.lnd lnd
+done.
+Generating a new backward compatible nested p2sh address for alice...docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh
+docker exec -i -t alice lncli --network=simnet newaddress np2wkh

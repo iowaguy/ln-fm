@@ -2,7 +2,7 @@
 Also note that a full implementation of `lnd` is included.
 
 ## Running Model Checker
-Run `./lnverifier` to test the model with SPIN. It should report all states as reached, and not report any deadlocks or livelocks.
+The SPIN model checker must be installed and available from the command line. Run `./lnverifier` to test the model with SPIN. It should report all states as reached, and not report any deadlocks or livelocks.
 
 Providing a numeric argument will verify the corresponding property in the paper, e.g., `./lnverifier 1` will verify property 1. Properties are numbered 1-5. If a property does not verify, an error will be thrown.
 
